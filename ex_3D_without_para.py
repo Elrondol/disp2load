@@ -8,13 +8,13 @@ import time
 
 #################### WHERE THE DISPLACEMENT IS COMPUTED #################"
 #providing boundaries and ticks for the general domain  ->
-xs = np.linspace(-500, 500, 40)
-ys = np.linspace(-500, 500, 40)
-zs = np.linspace(0,100,40) #fait de la 3D! 
+xs = np.linspace(-500, 500, 100)
+ys = np.linspace(-500, 500, 100)
+zs = np.linspace(0,100,100) #fait de la 3D! 
 Us = np.zeros((len(ys), len(xs), len(zs),3)) #créé la map des déplacement initialisée à 0 
 
 ##################################### DEFINING VERTICES WITH THEIR PARAMETERS #############
-ps = np.random.randint(low=0, high=9.81*10*1000, size=(2,2))  
+ps = np.random.randint(low=0, high=9.81*10*1000, size=(3,3))  
 # ps = np.ones((2,2))*9.81*10*1000
 E = 20e9
 v = 0.25
