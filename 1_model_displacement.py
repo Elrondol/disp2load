@@ -7,10 +7,10 @@ import os
 ### il faut déjà avoir créé le fichier avec le """
 
 #################### OU VA T ON EXECUTER LE RUN #### -> les fichiers avec les lignes de sources seront rassemblés dans ce dossier 
-directory = 'run_test' 
+directory = 'run_test2' 
 
 ######################################## SOURCES ET CONSTANTES ################
-lines_to_compute = range(3,6) # (premiere ligne de sources calculée, dernière ligne calculée )
+lines_to_compute = range(140,150) # (premiere ligne de sources calculée, dernière ligne calculée )
 
 
 ps_file_path = 'ps.npy' #le chemin d'accès au fichier qui contient la grille de presisons  
@@ -20,9 +20,9 @@ v = 0.25
 
 ###################################### POSITIONS À CALCULER ###########
 
-xs = np.linspace(-500, 500, 20)  #nested loops -> il calcule la grille complète
-ys = np.linspace(-500, 500, 20)
-zs = np.linspace(0,100,20)
+xs = np.linspace(-500, 500, 200)  #nested loops -> il calcule la grille complète
+ys = np.linspace(-500, 500, 200)
+zs = np.linspace(0,100,3)
 
 #################################################################################################################################
 #################################################################################################################################
