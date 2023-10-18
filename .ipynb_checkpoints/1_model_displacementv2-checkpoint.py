@@ -8,19 +8,19 @@ import tempfile
 ce script a une parallélisaiton naturelle : il créé un fiichier pour indiquer qu'il travail sur une ligne donnée  et il créé le fichier de la ligne et supprime le fichier lock -> on peut lancer le job autant de fois que l'on veut et chacun se mettra à travailler sur une ligne diféfrente  """
 
 #################### OU VA T ON EXECUTER LE RUN #### -> les fichiers avec les lignes de sources seront rassemblés dans ce dossier 
-directory = 'run_verif' 
+directory = 'run_verif_convert' 
 
 ######################################## SOURCES ET CONSTANTES ################
 
-ps_file_path = 'ps_verif.npy' #le chemin d'accès au fichier qui contient la grille de presisons  
-rs_file_path = 'rs_verif.npy' #le chemin d'accès au fichier contenant la grille avec les coordonnées des sommets des sources
+ps_file_path = 'ps_verif_convert.npy' #le chemin d'accès au fichier qui contient la grille de presisons  
+rs_file_path = 'rs_verif_convert.npy' #le chemin d'accès au fichier contenant la grille avec les coordonnées des sommets des sources
 E = 75e9
 v = 0.25
 
 ###################################### POSITIONS À CALCULER ###########
 
-xs = np.linspace(246, 249, 200)  #nested loops -> il calcule la grille complète
-ys = np.linspace(40, 42.5, 200)
+xs = np.linspace(-1932000,-1735000, 200)  #nested loops -> il calcule la grille complète
+ys = np.linspace(-4406000,-4442000, 200)
 zs = np.linspace(0,2,3)
 
 #################################################################################################################################
