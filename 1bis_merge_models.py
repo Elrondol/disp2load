@@ -4,7 +4,7 @@ import os
 """Ce script sert à merge les fichiers de déplacement associés à chacune des lignes de source """
 
 #################### OU VA T ON EXECUTER LE RUN #### -> les fichiers avec les lignes de sources seront rassemblés dans ce dossier 
-directory = 'run_test' 
+directory = 'run_test3' 
 
 
 ######################################## on load les fichiers de source et on les stack 
