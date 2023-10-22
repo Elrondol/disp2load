@@ -1,4 +1,5 @@
 import numpy as np
+import pyproj
 
 #considère que E et  v sont des constantes, il faudra juste donner à manger au code la matrice avec les valeur de p et la les boundaries 
 #du premier et dernier vectice et il s'occupe alors de créér un maillage régulier avec des vectices aayant le 
@@ -48,26 +49,36 @@ def compute_strain_tensor_at_point(Up,dx,dy,dz):
     return strain_tensor
 
 
-def lat_lng_to_cartesian(lat, lng):
-    """Converts lat lon coordinates to cartesian"""
-    EARTH_RADIUS = 6371000
-    # Convert latitude and longitude from degrees to radians
-    lat_rad = np.deg2rad(lat)
-    lng_rad = np.deg2rad(lng)
-    # Calculate Cartesian coordinates
-    x = EARTH_RADIUS * np.cos(lat_rad) * np.cos(lng_rad)
-    y = EARTH_RADIUS * np.cos(lat_rad) * np.sin(lng_rad)
-    z = EARTH_RADIUS * np.sin(lat_rad)
-    return x, y, z
 
-def cartesian_to_lat_lng(x, y, z):
-    """Converts cartesian coordinates to lat lon"""
-    EARTH_RADIUS = 6371000
-    # Calculate latitude in radians
-    lat_rad = np.arctan2(z, np.sqrt(x**2 + y**2))
-    # Calculate longitude in radians
-    lng_rad = np.arctan2(y, x)
-    # Convert latitude and longitude from radians to degrees
-    lat = np.rad2deg(lat_rad)
-    lng = np.rad2deg(lng_rad)
-    return lat, lng
+
+def lat_lon_to_xy(latitude, longitude, zone=None):
+    # Define the projection. You can use UTM, Lambert Conformal Conic, or another projection.
+    # Here's an example using a UTM projection for the Great Salt Lake area.
+    if zone is None:
+        # Determine the UTM zone based on the longitude of the location.
+        # In this example, we're using the WGS 84 coordinate system.
+        utm_zone = int((longitude + 180) / 6) + 1
+        zone = f'EPSG:326{utm_zone:02d}'  # UTM zone for northern Utah
+        
+    # Create a pyproj transformer.
+    transformer = pyproj.Transformer.from_crs("EPSG:4326", zone, always_xy=True)
+
+    # Perform the coordinate conversion.
+    x, y = transformer.transform(longitude, latitude)
+
+    return x, y
+
+
+def xy_to_lat_lon(x, y, zone=None):
+    if zone is None:
+        # Determine the UTM zone based on the X coordinate.
+        utm_zone = int((x + 180) / 6) + 1
+        zone = f'EPSG:326{utm_zone:02d}'  # UTM zone for northern Utah
+
+    # Create a pyproj transformer.
+    transformer = pyproj.Transformer.from_crs(zone, "EPSG:4326", always_xy=True)
+
+    # Perform the coordinate conversion.
+    longitude, latitude = transformer.transform(x, y)
+
+    return latitude, longitude
