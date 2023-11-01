@@ -167,40 +167,42 @@ def alpha(r):
             a = a + da
     return a
 
-def load2disp(xyz, r, p, E, v):
-    """This function computes the displacement of a given point at coordinates xyz in a vertice r which is a polygon of any shape 
-    (4 sides)  
-    The required shape for xyz is (3,) and the required size for r is (n,2) : [[x_bot_left,y_bot_left],
-                                                                               [x_bot_right],[y_bot_right],
-                                                                               [x_top_right],[y_top_right]
-                                                                               [x_top_left] ,[y_top_left]]   -> anti clockwise order"""
-    
-    # Translating the coordinates of the vertices so that the considered point is located at the middle
-    r_translated = np.zeros(r.shape)
-    r_translated[:,0] = -r[:,0] + xyz[0] 
-    r_translated[:,1] = -r[:,1] + xyz[1]   
-    z = xyz[2]
-    
-    # print(r_translated)
-    
-    # Lame constants
-    l = E * v / ((1 + v) * (1 - 2 * v))
-    m = E / (2 * (1 + v))
-    
-    # Integrals
-    I1 = compute_I1(r_translated, z)
-    I3 = compute_I3(r_translated, z)
-    I4 = compute_I4(r_translated, z)
-    
-    # Displacements
-    U = np.zeros((3, 1))
-    U[0:2, 0] = -I1*p/(4*pi*(l+m))
-    U[2, 0] = (I3*p/(4*pi*m)) + (I4 * p / (4 * pi * (l + m)))
 
-    if z != 0:
-        I2 = compute_I2(r_translated, z)
-        al = alpha(r_translated)
-        U[0:2, 0] -= I2 * z * p / (4 * np.pi * m)
-        U[2, 0] -= z * al * p / (4 * np.pi * (l + m))
+def build_G(rs,xs,ys,Us_formatted,l,m):
+    """Fonction pour build G sans régularization"""
+    source_number = len(rs[:,0])*len(rs[0,:]) 
+    data_number = len(Us_formatted)
+    
+    G = np.zeros((data_number,source_number))
+    rs_formatted = rs.reshape(source_number,4,2) 
+        
+    for i in range(source_number): # on remplit à présent la matrice G et pour ça on a besoin d'itérer sur les sources        
+        r = rs_formatted[i] 
+        #on doit aussi boucler sur les positions de la station car le r_translated en dépend en fait ... ->  par contre 1 station fournit 3 data
+        for j in range(len(xs)): 
+            xyz = [xs[j],ys[j],0] #z = 0 on présume car c'est des enregistrements à la surface et qu'il accepte pas des altitutdes positives 
+            # Translating the coordinates of the vertices so that the considered point is located at the middle
+            r_translated = np.zeros(r.shape)
+            r_translated[:,0] = -r[:,0] + xyz[0] 
+            r_translated[:,1] = -r[:,1] + xyz[1]   
+            z = xyz[2]
 
-    return U
+            # Integrals
+            I1 = compute_I1(r_translated, z)
+            I3 = compute_I3(r_translated, z)
+            I4 = compute_I4(r_translated, z)
+
+            
+            # Displacements
+            tmp = -I1/(4*np.pi*(l+m)) #coefficient pour la source i et pour la station j  pour les déplacements horizontaux
+            alpha = tmp[0]
+            beta  = tmp[1]
+            gamma = I3/(4*np.pi*m) + I4/(4*np.pi*(l + m)) #coefficent pour la source i  et la station j pour les déplacements verticaux
+            
+            starting_idx = j*3 #car 3 données par station
+            G[starting_idx,i] = alpha
+            G[starting_idx,i] = beta
+            G[starting_idx+2,i] = gamma
+    
+    return G
+
