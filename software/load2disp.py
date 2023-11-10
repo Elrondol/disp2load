@@ -204,3 +204,4 @@ def load2disp(xyz, r, p, E, v):
         U[2, 0] -= z * al * p / (4 * np.pi * (l + m))
 
     return U
+

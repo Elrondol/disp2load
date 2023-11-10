@@ -169,7 +169,7 @@ def alpha(r):
 
 
 def build_G(rs,xs,ys,Us_formatted,l,m):
-    """Fonction pour build G sans régularization"""
+    """Fonction pour build G, la matrice qui relie les pressions au displacements"""
     source_number = len(rs[:,0])*len(rs[0,:]) 
     data_number = len(Us_formatted)
     
@@ -201,8 +201,104 @@ def build_G(rs,xs,ys,Us_formatted,l,m):
             
             starting_idx = j*3 #car 3 données par station
             G[starting_idx,i] = alpha
-            G[starting_idx,i] = beta
+            G[starting_idx+1,i] = beta
             G[starting_idx+2,i] = gamma
     
     return G
 
+
+def kfromij(i,j,nx): # fonction pour trouver les indices globaux des sources car les m sont regroupés dans un vecteur 
+    return j*nx+i #numerotation globale 
+
+
+def build_laplacian(rs):
+    """Fonction qui compute le laplacien servant pour la régularization afin d'avoir une solution smooth"""
+    
+    shape = rs[:,:,0,0].shape
+    dx = (rs[-1,-1,2,0]-rs[0,0,0,0])/len(rs[0,:,0,0])
+    dy = (rs[-1,-1,2,1]-rs[0,0,0,1])/len(rs[:,0,0,0])
+    
+    source_number = shape[0]*shape[1]
+    nx, ny = shape[1], shape[0]
+
+    laplacien = np.zeros((source_number,source_number))
+    
+    for i in np.arange(0,nx):
+        for j in np.arange(0,ny):
+                k=kfromij(i,j,nx)
+                laplacien[k,k]=-2/dx**2-2/dy**2 #central term
+                #left term
+                if i >0 :
+                    kl=kfromij(i-1,j,nx)
+                    laplacien[k,kl]=1/dx**2
+
+                #right term
+                if i < nx-1 :
+                    kr=kfromij(i+1,j,nx)
+                    laplacien[k,kr]=1/dx**2
+
+                #bottom term
+                if j >0 :
+                    kb=kfromij(i,j-1,nx)
+                    laplacien[k,kb]=1/dy**2
+
+                #top term
+                if j < ny-1 :
+                    kt=kfromij(i,j+1,nx)
+                    laplacien[k,kt]=1/dy**2
+    return laplacien     
+
+
+
+
+def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1):
+    '''Need to provide the fucntion the shape of ps expected and Us the data in the format [[x1,y1,z1],
+                                                                                            [x2,y2,z2],
+                                                                                            ...
+                                                                                            [xn,yn,zn]]
+                                                                                            
+            For  mode=1  alpha is the value of lmabda, the coefficient of the regularizer                                                                        '''
+    # Lame constants
+    l = E * v / ((1 + v) * (1 - 2 * v))
+    m = E / (2 * (1 + v))    
+    
+    data_number = len(Us[:,0])*len(Us[0,:])
+    source_number = len(rs[:,0,0,0])*len(rs[0,:,0,0])
+    
+    Us_formatted = Us.reshape((data_number,1)) #reshape en mettant en trois premier les éléments de la première ligne, puis 3 suivant ce sont les 3 de la seconde ligne..
+    G = build_G(rs,xs,ys,Us_formatted,l,m)
+    
+    if mode==0: #without regularization    
+        ps = np.linalg.solve(G.T@G,G.T@Us_formatted)
+        
+    elif mode==1: #smooth regularization
+        laplacian =  build_laplacian(rs)
+        GTG = G.T@G
+        GTD = G.T@Us_formatted
+        ps = np.linalg.inv(GTG + alpha*laplacian.T@laplacian) @ GTD 
+    
+    elif mode==2: #regularization with something 
+        Gstar = G
+        G = Gstar.T
+        ps = np.zeros((source_number,1))
+        b = G@Us_formatted
+        T = alpha #threshold pour le  soft thresholding -> plus le threshold est faible moins on lisse!!! 
+        hessian = G@Gstar
+        gamma = gamma_coeff/np.max(np.abs(hessian))
+        k = 0
+        conv = False
+        while conv==False :#
+            ps_old = ps.copy()
+            #gradient descent
+            ps_bar = ps+gamma*(b-G@Gstar@ps)
+            #soft thresholding 
+            for i in range(source_number):
+                ps[i,0] = ps_bar[i,0]*np.max([1-(gamma*T)/np.abs(ps_bar[i,0]),0])
+            res = ((ps-ps_old).T@(ps-ps_old))[0][0]
+            if  res < epsilon: #on vérifie la convergence, attention convergence basée sur des valeurs en radians donc faut espsilon assez faible pour avoir une bonne précision 
+                conv = True    
+            k += 1 
+        
+    ps = ps.reshape(rs[:,:,0,0].shape)
+    return ps
+    

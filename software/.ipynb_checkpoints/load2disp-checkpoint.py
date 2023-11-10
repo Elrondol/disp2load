@@ -170,10 +170,10 @@ def alpha(r):
 def load2disp(xyz, r, p, E, v):
     """This function computes the displacement of a given point at coordinates xyz in a vertice r which is a polygon of any shape 
     (4 sides)  
-    The required shape for xyz is (3,) and the required size for r is (4,2) : [[x_bot_left,y_bot_left],
+    The required shape for xyz is (3,) and the required size for r is (n,2) : [[x_bot_left,y_bot_left],
                                                                                [x_bot_right],[y_bot_right],
                                                                                [x_top_right],[y_top_right]
-                                                                               [x_top_left] ,[y_top_left]]"""
+                                                                               [x_top_left] ,[y_top_left]]   -> anti clockwise order"""
     
     # Translating the coordinates of the vertices so that the considered point is located at the middle
     r_translated = np.zeros(r.shape)
@@ -204,3 +204,4 @@ def load2disp(xyz, r, p, E, v):
         U[2, 0] -= z * al * p / (4 * np.pi * (l + m))
 
     return U
+
