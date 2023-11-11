@@ -1,5 +1,6 @@
 import numpy as np
 import pyproj
+from pyproj import Proj, Transformer
 
 #considère que E et  v sont des constantes, il faudra juste donner à manger au code la matrice avec les valeur de p et la les boundaries 
 #du premier et dernier vectice et il s'occupe alors de créér un maillage régulier avec des vectices aayant le 
@@ -82,3 +83,62 @@ def xy_to_lat_lon(x, y, zone=None):
     longitude, latitude = transformer.transform(x, y)
 
     return latitude, longitude
+
+
+
+
+#### fucntion to convert coordinates and only requires to know the utm zone 
+
+
+def latlon2xy(latitudes, longitudes, elevations=None, projection_type='utm', zone=None, ellps='WGS84'):
+    """
+    Convert latitude, longitude, and elevation coordinates to x and y coordinates.
+
+    Parameters:
+    - latitudes: List of latitude coordinates.
+    - longitudes: List of longitude coordinates.
+    - elevations: List of elevation coordinates (optional).
+    - projection_type: Projection type, e.g., 'utm'.
+    - zone: UTM zone (required if using UTM projection).
+    - ellps: Ellipsoid for the projection, e.g., 'WGS84'.
+
+    Returns:
+    - x: List of x coordinates.
+    - y: List of y coordinates.
+    """
+
+    # Create a projection
+    projection = Proj(proj=projection_type, zone=zone, ellps=ellps)
+
+    # Convert latitude, longitude, elevation to x, y
+    x, y = projection(longitudes, latitudes)
+
+    # if elevations:
+    #     return x, y, elevations
+    # else:
+    return x, y
+
+
+def xy2latlon(x, y, projection_type='utm', zone=None, ellps='WGS84'):
+    """
+    Convert x and y coordinates back to latitude and longitude.
+
+    Parameters:
+    - x: List of x coordinates.
+    - y: List of y coordinates.
+    - projection_type: Projection type, e.g., 'utm'.
+    - zone: UTM zone (required if using UTM projection).
+    - ellps: Ellipsoid for the projection, e.g., 'WGS84'.
+
+    Returns:
+    - latitudes: List of latitude coordinates.
+    - longitudes: List of longitude coordinates.
+    """
+    # Create a projection
+    projection = Proj(proj=projection_type, zone=zone, ellps=ellps)
+
+    # Inverse transformation from x, y to latitude, longitude
+    transformer = Transformer.from_proj(Proj(proj=projection_type, zone=zone, ellps=ellps), Proj(proj='latlong', ellps='WGS84'))
+    longitudes, latitudes = transformer.transform(x, y)
+
+    return latitudes, longitudes
