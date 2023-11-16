@@ -168,10 +168,10 @@ def alpha(r):
     return a
 
 
-def build_G(rs,xs,ys,Us_formatted,l,m):
+def build_G(rs,xs,ys,data_number,l,m):
     """Fonction pour build G, la matrice qui relie les pressions au displacements"""
     source_number = len(rs[:,0])*len(rs[0,:]) 
-    data_number = len(Us_formatted)
+    # data_number = len(Us_formatted)
     
     G = np.zeros((data_number,source_number))
     rs_formatted = rs.reshape(source_number,4,2) 
@@ -266,7 +266,7 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
     source_number = len(rs[:,0,0,0])*len(rs[0,:,0,0])
     
     Us_formatted = Us.reshape((data_number,1)) #reshape en mettant en trois premier les éléments de la première ligne, puis 3 suivant ce sont les 3 de la seconde ligne..
-    G = build_G(rs,xs,ys,Us_formatted,l,m)
+    G = build_G(rs,xs,ys,data_number,l,m)
     
     if mode==0: #without regularization    
         ps = np.linalg.solve(G.T@G,G.T@Us_formatted)
