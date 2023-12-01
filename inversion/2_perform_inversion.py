@@ -20,7 +20,7 @@ v = 0.25
 mode = 1 #0 for no regu, 1 for smooth, 2 for TV
 # alpha = 1  #lambda in regularizer term, peut direct le mettre si on le connait déjà, sinon juste on peut le 
 
-alphas = np.logspace(6,10,200)
+alphas = np.logspace(0,9,200)
 
 OK = False
 
@@ -28,10 +28,10 @@ OK = False
 while OK==False:
     alpha = alphas[np.random.randint(0,len(alphas))] #essaye de dchoisir une valeur de apha 
     
-    if os.path.exists(f'Us_{alpha}.lock')==False and os.path.exists(f'Us_{alpha}.npy')==False: #si pas en train de calculer et pas déjà calculée
+    if os.path.exists(f'ps2_{alpha}.lock')==False and os.path.exists(f'ps2_{alpha}.npy')==False: #si pas en train de calculer et pas déjà calculée
         #### doit maintenant créer le fichier temporaire pour lock la ligne
 
-        with open(f'Us_{alpha}.lock', 'w') as lock_file:
+        with open(f'ps2_{alpha}.lock', 'w') as lock_file:
             lock_file.write("")  # You can write some data or leave it empty
     
         OK = True #c'est bon c'est une nouvelle valeur de alpha donc on la calcule   
@@ -46,7 +46,7 @@ yrinv = np.linspace(3638619.8502579452, 4431792.876044568, nyinv)
 
 ####### 
 # data = np.load(f'{data_directory}data_{day}.npy') 
-data = np.load(f'data_Hilary_synthetic_noisy.npy') 
+data = np.load(f'data_Hilary_synthetic_noisy2.npy') 
 lat, lon = data[:,0], data[:,1]
 Us = data[:,2:6]
 
@@ -67,28 +67,28 @@ rs4inversion =  utils.create_source_mesh(xrinv[0]-dxinv/2,xrinv[-1]+dxinv/2,yrin
 
 #INVERSION
 ps = disp2load.disp2load(E,v,rs4inversion,xs,ys,Us,mode=mode, alpha=alpha, epsilon=1e-6, gamma_coeff=1e-2)
-np.save(f'ps_{alpha}.npy', ps)
+np.save(f'ps2_{alpha}.npy', ps)
 
 
 ##### FORWARD MODELLING REQUIRED TO MAKE THE L CURVE
 
-nsta = len(xs)
-z = 0 #va mettre toutes les stations à 0 m
+#nsta = len(xs)
+#z = 0 #va mettre toutes les stations à 0 m
       
 #y'a que ps qui change 
-Us = np.zeros((nsta, 3)) 
-for vy_idx in range(nyinv): 
-    for vx_idx in range(nxinv): 
-        p = ps[vy_idx,vx_idx]
-        if p!=0: #si p =0 alors pas besoin de calculer l'influence de cette source car nulle 
-            r = rs4inversion[vy_idx,vx_idx]
-            for i in range(nsta):
-                xyz = [xs[i], ys[i], z]
-                U = load2disp.load2disp( xyz, r, p, E, v)
-                Us[i, :] += U.reshape(3)
+#Us = np.zeros((nsta, 3)) 
+#for vy_idx in range(nyinv): 
+#    for vx_idx in range(nxinv): 
+#        p = ps[vy_idx,vx_idx]
+#        if p!=0: #si p =0 alors pas besoin de calculer l'influence de cette source car nulle 
+#            r = rs4inversion[vy_idx,vx_idx]
+#            for i in range(nsta):
+#                xyz = [xs[i], ys[i], z]
+#                U = load2disp.load2disp( xyz, r, p, E, v)
+#                Us[i, :] += U.reshape(3)
 
-np.save(f'Us_{alpha}.npy', Us)
-os.remove(f'Us_{alpha}.lock')
+#np.save(f'Us_{alpha}.npy', Us)
+os.remove(f'ps2_{alpha}.lock')
 
 
 

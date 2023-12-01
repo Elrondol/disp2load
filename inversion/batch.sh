@@ -4,7 +4,7 @@
 
 #OAR --project faultscan
 
-#OAR -l /nodes=1/core=1,walltime=24:00:00 
+#OAR -l /nodes=1/core=2,walltime=12:00:00 
 
 source /applis/environments/conda.sh
 conda activate py3
@@ -13,4 +13,5 @@ conda activate py3
 export PATH="/applis/environments/conda.sh:$PATH"
 # export PYTHONPATH="pycorr/v1.0:$PYTHONPATH"
 
-python 2_perform_inversion.py
+python 3_compute_Us.py
+#python 2_perform_inversion.py

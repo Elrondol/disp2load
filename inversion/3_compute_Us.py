@@ -25,7 +25,7 @@ yrinv = np.linspace(3638619.8502579452, 4431792.876044568, nyinv)
 ####### 
 
 # data = np.load(f'{data_directory}data_{day}.npy') 
-data = np.load(f'data_Hilary_synthetic_noisy.npy') 
+data = np.load(f'data_Hilary_synthetic_noisy2.npy') 
 lat, lon = data[:,0], data[:,1]
 
 #### conversion des coordoonées en x y 
@@ -47,20 +47,20 @@ rs4inversion =  utils.create_source_mesh(xrinv[0]-dxinv/2,xrinv[-1]+dxinv/2,yrin
 
 
 # Find all .npy files in the directory that end with the specified string
-file_list = glob.glob(f'ps_*.npy')
+file_list = glob.glob(f'ps2_*.npy')
 
-for i in range(len(file_list)):
-    if file_list[i] == 'ps_mode=1_alpha=0.0033516026509388406_nx=100_ny=100.npy':
-        idx = i
+#for i in range(len(file_list)):
+#    if file_list[i] == 'ps_mode=1_alpha=0.0033516026509388406_nx=100_ny=100.npy':
+#        idx = i
+#
+#print(file_list)
 
-print(file_list)
-
-file_list.pop(idx)
+#file_list.pop(idx)
 #c'est bon on a la liste des fichiers on peut les load et extraire la valeur de alpha  osef d'extraire la valeur de alpha pour le moment 
 
 
 def extract_number_from_filename(filename):
-    pattern = r'ps_([0-9]+\.[0-9]+)\.npy'
+    pattern = r'ps2_([0-9]+\.[0-9]+)\.npy'
     match = re.search(pattern, filename)
     if match:
         extracted_number = match.group(1)
@@ -74,10 +74,10 @@ z = 0 #va mettre toutes les stations à 0 m
 for j, file in enumerate(file_list): #boucle sur les distribution de sources calculées 
     alpha = extract_number_from_filename(file)
     #vérifie que le Us pour le alpha donné a pas encoré été calculé  
-    if  os.path.exists(f'Us_{alpha}.lock')==False and os.path.exists(f'Us_{alpha}.npy')==False: #si pas en train de calculer et pas déjà calculée
+    if  os.path.exists(f'Us2_{alpha}.lock')==False and os.path.exists(f'Us2_{alpha}.npy')==False: #si pas en train de calculer et pas déjà calculée
         #### doit maintenant créer le fichier temporaire pour lock la ligne
 
-        with open(f'Us_{alpha}.lock', 'w') as lock_file:
+        with open(f'Us2_{alpha}.lock', 'w') as lock_file:
             lock_file.write("")  # You can write some data or leave it empty
 
         ps = np.load(file)    
@@ -96,6 +96,6 @@ for j, file in enumerate(file_list): #boucle sur les distribution de sources cal
         # ps = ps.reshape(source_number,1)
         # Us_cal = G@ps
         # Us_cal = np.reshape((len(xs),3))
-        np.save(f'Us_{alpha}.npy', Us)
-        os.remove(f'Us_{alpha}.lock')
+        np.save(f'Us2_{alpha}.npy', Us)
+        os.remove(f'Us2_{alpha}.lock')
     

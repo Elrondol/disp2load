@@ -271,13 +271,13 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
     if mode==0: #without regularization    
         ps = np.linalg.solve(G.T@G,G.T@Us_formatted)
         
-    elif mode==1: #smooth regularization
+    elif mode==1: #smooth regularization = with laplacian
         laplacian =  build_laplacian(rs)
         GTG = G.T@G
         GTD = G.T@Us_formatted
         ps = np.linalg.inv(GTG + alpha*laplacian.T@laplacian) @ GTD 
     
-    elif mode==2: #regularization with something 
+    elif mode==2: #regularization with Total variation (TV)
         Gstar = G
         G = Gstar.T
         ps = np.zeros((source_number,1))
@@ -298,7 +298,12 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
             if  res < epsilon: #on vérifie la convergence, attention convergence basée sur des valeurs en radians donc faut espsilon assez faible pour avoir une bonne précision 
                 conv = True    
             k += 1 
-        
+    elif mode==3: #régulariation avec gaussienne 
+        laplacian =  build_laplacian(rs)
+        GTG = G.T@G
+        GTD = G.T@Us_formatted
+        ps = np.linalg.inv(GTG + alpha*laplacian.T@laplacian) @ GTD 
+    
     ps = ps.reshape(rs[:,:,0,0].shape)
     return ps
     
