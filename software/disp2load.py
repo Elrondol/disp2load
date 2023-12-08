@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.integrate import quad
 from numpy import arctan, tan, cos, sin, arccos, arcsin, sqrt, log, log10, pi
+from scipy.optimize import minimize
+
 
 def compute_I1(r, z):
     nv = r.shape[0]
@@ -250,8 +252,50 @@ def build_laplacian(rs):
 
 
 
+def build_gaussian(rs, sigma):
+    """Builds a Gaussian matrix for regularization."""
+    shape = rs[:,:,0,0].shape
+    nx, ny = shape[1], shape[0]
+    source_number = nx * ny
+    gaussian = np.zeros((source_number, source_number))
+    for i in range(nx):
+        for j in range(ny):
+            k = kfromij(i, j, nx)
+            for u in range(nx):
+                for v in range(ny):
+                    kl = kfromij(u, v, nx)
+                    dx = i - u
+                    dy = j - v
+                    gaussian[k, kl] = (1 / (2 * np.pi * sigma ** 2)) * np.exp(-(dx ** 2 + dy ** 2) / (2 * sigma ** 2))
+    return gaussian
 
-def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1):
+
+##############" POUR INVERISON NON LINEAIRE ####### 
+def linesearch(alpha,Us_obs,G,ps,delta_m,lamb_laplacian):
+    c1, c2 = 1e-4, 0.9
+    cond2 = False
+    grad  = compute_grad_misfit(ps,Us_obs,G,lamb_laplacian)
+    it = 0 
+    while cond2==False:
+        it +=1
+        if compute_cost(ps+alpha*delta_m,Us_obs,G,lamb_laplacian) <= compute_cost(ps,Us_obs,G,lamb_laplacian) + c1*alpha*np.dot(grad,delta_m):
+            if np.dot(compute_grad_misfit(ps=ps+alpha*delta_m,Us_obs=Us_obs,G=G,lamb_laplacian=lamb_laplacian),delta_m) >= c2*np.dot(grad,delta_m):
+                cond2 = True
+            else:
+                alpha=alpha*10
+        else:
+            alpha=alpha/2
+    return alpha
+
+def compute_cost(ps,Us_obs,G,lamb_laplacian):
+    return np.sum((Us_obs-np.matmul(G,ps))**2)
+
+def compute_grad_misfit(ps,Us_obs,G,lamb_laplacian):
+    return np.matmul(G.T,(np.matmul(G,ps)-Us_obs)) + np.matmul(lamb_laplacian,ps)
+
+#######################################################"
+
+def disp2load(E,v,rs,xs, ys, Us, mode=0, lamb=1, epsilon=1e-2, gamma_coeff=0.1,sigma=1,G=None):
     '''Need to provide the fucntion the shape of ps expected and Us the data in the format [[x1,y1,z1],
                                                                                             [x2,y2,z2],
                                                                                             ...
@@ -266,7 +310,9 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
     source_number = len(rs[:,0,0,0])*len(rs[0,:,0,0])
     
     Us_formatted = Us.reshape((data_number,1)) #reshape en mettant en trois premier les éléments de la première ligne, puis 3 suivant ce sont les 3 de la seconde ligne..
-    G = build_G(rs,xs,ys,data_number,l,m)
+    if isinstance(G, np.ndarray)==False:
+        G = build_G(rs,xs,ys,data_number,l,m)
+    # print('cond=',np.linalg.cond(G))
     
     if mode==0: #without regularization    
         ps = np.linalg.solve(G.T@G,G.T@Us_formatted)
@@ -275,14 +321,13 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
         laplacian =  build_laplacian(rs)
         GTG = G.T@G
         GTD = G.T@Us_formatted
-        ps = np.linalg.inv(GTG + alpha*laplacian.T@laplacian) @ GTD 
-    
+        ps = np.linalg.inv(GTG + lamb*laplacian.T@laplacian) @ GTD 
     elif mode==2: #regularization with Total variation (TV)
         Gstar = G
         G = Gstar.T
         ps = np.zeros((source_number,1))
         b = G@Us_formatted
-        T = alpha #threshold pour le  soft thresholding -> plus le threshold est faible moins on lisse!!! 
+        T = lamb #threshold pour le  soft thresholding -> plus le threshold est faible moins on lisse!!! 
         hessian = G@Gstar
         gamma = gamma_coeff/np.max(np.abs(hessian))
         k = 0
@@ -290,7 +335,7 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
         while conv==False :#
             ps_old = ps.copy()
             #gradient descent
-            ps_bar = ps+gamma*(b-G@Gstar@ps)
+            ps_bar = ps+gamma*(b-hessian@ps)
             #soft thresholding 
             for i in range(source_number):
                 ps[i,0] = ps_bar[i,0]*np.max([1-(gamma*T)/np.abs(ps_bar[i,0]),0])
@@ -298,11 +343,36 @@ def disp2load(E,v,rs,xs, ys, Us, mode=0, alpha=1, epsilon=1e-2, gamma_coeff=0.1)
             if  res < epsilon: #on vérifie la convergence, attention convergence basée sur des valeurs en radians donc faut espsilon assez faible pour avoir une bonne précision 
                 conv = True    
             k += 1 
-    elif mode==3: #régulariation avec gaussienne 
-        laplacian =  build_laplacian(rs)
+    elif mode==3: #régulariation avec gaussienne -> incovénient c'est qu'on a un deuxième paramètre à gérer ...
+        gaussian = build_gaussian(rs,sigma)
+        gaussian_inv = np.linalg.inv(gaussian)
         GTG = G.T@G
         GTD = G.T@Us_formatted
-        ps = np.linalg.inv(GTG + alpha*laplacian.T@laplacian) @ GTD 
+        ps = np.linalg.inv(GTG + lamb*gaussian_inv.T@gaussian_inv) @ GTD 
+    elif mode==4: #NLCG 
+        #ce mode utilise une estimation de ps initiale de + il faut reshape U pour avoir une forme  n, 
+        Us_formatted = Us.reshape((data_number,))
+        laplacian =  build_laplacian(rs)
+        lamb_laplacian = lamb*laplacian.T@laplacian
+        alpha = 1 #initilise avec alpha = 1 
+        conv = False
+        i = 0
+        ps = np.ones((source_number,))
+        while conv==False:
+            i +=1 
+            delta_m = -compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_laplacian=lamb_laplacian)
+            alpha = linesearch(alpha=alpha,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_laplacian=lamb_laplacian) #aucun des deux converge
+            ps += alpha*delta_m
+            if np.dot(alpha*delta_m,alpha*delta_m) < epsilon or i>100e6:
+                conv = True
+        
+    elif mode==5: #mode L-BFGS
+        Us_formatted = Us.reshape((data_number,))
+        ps = np.ones((source_number,))
+        laplacian =  build_laplacian(rs)
+        lamb_laplacian = lamb*laplacian.T@laplacian
+        result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_laplacian), method='L-BFGS-B', tol=epsilon, jac=compute_grad_misfit)
+        ps = result.x
     
     ps = ps.reshape(rs[:,:,0,0].shape)
     return ps

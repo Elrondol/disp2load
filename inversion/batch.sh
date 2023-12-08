@@ -4,7 +4,7 @@
 
 #OAR --project faultscan
 
-#OAR -l /nodes=1/core=2,walltime=12:00:00 
+#OAR -l /nodes=1/core=2,walltime=24:00:00 
 
 source /applis/environments/conda.sh
 conda activate py3
