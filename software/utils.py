@@ -6,9 +6,10 @@ from pyproj import Proj, Transformer
 #du premier et dernier vectice et il s'occupe alors de créér un maillage régulier avec des vectices aayant le 
 
 def create_source_mesh(x0,x1,y0,y1,ps):
-    # """x0 et x1 = le plus petit et plus grand x du domaine ,  
-    # la focntion va return un maillage  2D/3D qui contiendra  les différents vertices (les vertices sont chacun un array de taille 4 pour faire 
-    # on polynome carré)""""
+    """This function creates a 2D mesh for which each cell is associated with a source and contains the coordinates of the 4 vertices of the 
+    rectangular source.
+    :input: x0 = smallest x value, x1 = largest x value, y0 = smallest y value, y1 = largest y value
+    :output: numpy array of shape (ny,nx,4,2)"""
     vertice_mesh = np.zeros((ps.shape[0],ps.shape[1],4,2))
     x_num = ps.shape[1]
     y_num = ps.shape[0]

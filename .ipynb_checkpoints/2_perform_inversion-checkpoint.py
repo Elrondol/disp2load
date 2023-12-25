@@ -8,24 +8,21 @@ import random
 import glob
 import re
 """"""
-data_directory = '/media/parisnic/STOCKAGE/M2/GNSS_US_daily/'   
+# data_directory = '/media/parisnic/STOCKAGE/M2/GNSS_US_daily/'   
 zone = 11 #zone utm pour la conversion
-nsta_selec = None #indique le nombre de stations à sélectionner histoire de savoir  -> None pour pas faire de sélection
+# nsta_selec = None #indique le nombre de stations à sélectionner histoire de savoir  -> None pour pas faire de sélection
 
 E = 75e9
 v = 0.25
 
-
-
 G = np.load('/home/parisnic/project/disp2load/G.npy') #load G qui a déjà été précomputed
-
 
 mode = 'linear' #None, linear, lbfgs, nlcg, nlcg_fast,lbfgs_fast, TV
 epsilon=1e-25
 maxit = 1e4
 
 Cm1 = 'laplacian' #if use 'gaussian' or 'laplacian' it will compute the laplacian / gaussian, but we can precompute it to save time
-sigma = 1e-1
+sigma = None #1e-1
 
 
 lambs = np.logspace(-13,-5,200)
@@ -61,11 +58,12 @@ Us = data[:,2:6]
 xs, ys = utils.latlon2xy(latitudes=lat, longitudes=lon, elevations=None, zone=11)
 
 ### sélection de données aléatoirement dans le dataset au cas où y'a trop de données
-if nsta_selec!=None:
-    sta_idx = random.sample(range(0, len(xs)), nsta_selec)
-    xs = xs[sta_idx]
-    ys = ys[sta_idx]
-    Us = Us[sta_idx,:]
+# if nsta_selec!=None:
+#     sta_idx = random.sample(range(0, len(xs)), nsta_selec)
+#     xs = xs[sta_idx]
+#     ys = ys[sta_idx]
+#     Us = Us[sta_idx,:]
+
 
 #création du mesh
 dxinv = xrinv[1]-xrinv[0]
