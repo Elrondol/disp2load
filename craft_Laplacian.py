@@ -8,13 +8,19 @@ import random
 import glob
 import re
 """"""
-nxinv = 100
-nyinv = 100
-xrinv = np.linspace(-31241.831049184548, 749768.9670936721, nxinv) #ces dooronnées correcpondent au milieu des pixels -> donc rs doit être un peu au dela de ces 
-yrinv = np.linspace(3638619.8502579452, 4431792.876044568, nyinv)
-dxinv = xrinv[1]-xrinv[0]
-dyinv = yrinv[1]-yrinv[0]
-rs4inversion =  utils.create_source_mesh(xrinv[0]-dxinv/2,xrinv[-1]+dxinv/2,yrinv[0]-dyinv/2,yrinv[-1]+dyinv/2,np.zeros((nyinv,nxinv))) 
+# nxinv = 100
+# nyinv = 100
+# xrinv = np.linspace(-31241.831049184548, 749768.9670936721, nxinv) #ces dooronnées correcpondent au milieu des pixels -> donc rs doit être un peu au dela de ces 
+# yrinv = np.linspace(3638619.8502579452, 4431792.876044568, nyinv)
+
+xstart, ystart = utils.latlon2xy(40.5,-113.5,zone=11)
+xend, yend = utils.latlon2xy(42,-111.5,zone=11)
+
+
+# dxinv = xrinv[1]-xrinv[0]
+# dyinv = yrinv[1]-yrinv[0]
+# rs4inversion =  utils.create_source_mesh(xrinv[0]-dxinv/2,xrinv[-1]+dxinv/2,yrinv[0]-dyinv/2,yrinv[-1]+dyinv/2,np.zeros((nyinv,nxinv))) 
+rs4inversion =  utils.create_source_mesh(xstart,xend,ystart,yend,np.zeros((70,70))) 
 
 laplacian = disp2load.build_laplacian(rs4inversion)
-np.save(f'laplacian.npy', laplacian)
+np.save(f'laplacian_salt.npy', laplacian)

@@ -1,7 +1,7 @@
 run_*
 OAR*
-G.npy
+G*.npy
 gaussian_*
-laplacian.npy
+laplacian*.npy
 G_salt.npy
 inversion*

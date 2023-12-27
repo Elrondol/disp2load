@@ -143,3 +143,36 @@ def xy2latlon(x, y, projection_type='utm', zone=None, ellps='WGS84'):
     longitudes, latitudes = transformer.transform(x, y)
 
     return latitudes, longitudes
+
+
+
+def is_point_inside_polygon(polygon, x, y):
+    """Function that allows to determine if a point is inside a polygon : useful to map the pressure distribution front contours """
+    n = len(polygon)
+    inside = False
+    p1x, p1y = polygon[0]
+    for i in range(n + 1):
+        p2x, p2y = polygon[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xints:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+def second_deriv_Lcurve(norm_regu,misfit,lambda_list,lambda_range):
+    """Computes the second derivative of the L curve -> allows to detect the elbow of the L-curve"""
+    sorted_indices = np.argsort(norm_regu)
+    x_sorted = norm_regu[sorted_indices]
+    y_sorted = misfit[sorted_indices]
+    lambda_list_sorted = lambda_list[sorted_indices]
+    idx2keep = np.where((lambda_list_sorted>=lambda_range[0])&(lambda_list_sorted<=lambda_range[1]))[0]
+    x_sorted_cropped = x_sorted[idx2keep]
+    y_sorted_cropped = y_sorted[idx2keep]
+    lambda_list_cropped = lambda_list_sorted[idx2keep]
+    dy_dx = np.gradient(y_sorted_cropped, x_sorted_cropped)
+    d2y_dx2 = np.gradient(dy_dx, x_sorted_cropped)
+    return x_sorted_cropped, d2y_dx2, lambda_list_cropped

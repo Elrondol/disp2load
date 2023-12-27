@@ -16,7 +16,7 @@ export PATH="/applis/environments/conda.sh:$PATH"
 # python 1_model_displacementv2.py
 #python 3_compute_Us.py
 #python 2_perform_inversion.py
-#python craft_Gaussian.py
+python craft_Gaussian.py
 #python craft_Laplacian.py
 #python 2_perform_inversionv2.py
-python craft_G.py
+#python craft_G.py
