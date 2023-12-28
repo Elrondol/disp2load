@@ -1,6 +1,8 @@
 import numpy as np
 import pyproj
 from pyproj import Proj, Transformer
+import glob
+import re
 
 #considère que E et  v sont des constantes, il faudra juste donner à manger au code la matrice avec les valeur de p et la les boundaries 
 #du premier et dernier vectice et il s'occupe alors de créér un maillage régulier avec des vectices aayant le 
@@ -176,3 +178,10 @@ def second_deriv_Lcurve(norm_regu,misfit,lambda_list,lambda_range):
     dy_dx = np.gradient(y_sorted_cropped, x_sorted_cropped)
     d2y_dx2 = np.gradient(dy_dx, x_sorted_cropped)
     return x_sorted_cropped, d2y_dx2, lambda_list_cropped
+
+
+
+def extract_part(file_name):
+    start_index = file_name.rfind('/meta') + 5
+    end_index = file_name.rfind('.json')
+    return file_name[start_index:end_index]
