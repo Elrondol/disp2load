@@ -279,12 +279,12 @@ def linesearch(alpha,Us_obs,G,ps,delta_m,lamb_cov_inv):
         it +=1
         if compute_cost(ps+alpha*delta_m,Us_obs,G,lamb_cov_inv) <= compute_cost(ps,Us_obs,G,lamb_cov_inv) + c1*alpha*np.dot(grad,delta_m):
             if np.dot(compute_grad_misfit(ps=ps+alpha*delta_m,Us_obs=Us_obs,G=G,lamb_cov_inv=lamb_cov_inv),delta_m) >= c2*np.dot(grad,delta_m):
-                return alpha
+                return alpha #both conditions fulfilled, we found a good alpha
             else:
-                alpha=alpha*10
+                alpha=alpha*10 #curvature condition was not met, our alpha is too small
         else:
-            alpha=alpha/2
-    return None #pas réussi à trouver de bon alpha en suffisement peut de steps
+            alpha=alpha/2 #sufficient decrease conditon was not met, our alpha is too big
+    return None #pas réussi à trouver de bon alpha en suffisement peu de steps
 
 
 def linesearch_armijo(alpha,Us_obs,G,ps,delta_m,lamb_cov_inv):
@@ -295,10 +295,10 @@ def linesearch_armijo(alpha,Us_obs,G,ps,delta_m,lamb_cov_inv):
     while cond==False:
         it +=1
         if compute_cost(ps+alpha*delta_m,Us_obs,G,lamb_cov_inv) <= compute_cost(ps,Us_obs,G,lamb_cov_inv) + c1*alpha*np.dot(grad,delta_m):
-                return alpha
+                return alpha 
         else:
-            alpha=alpha/2
-    return None #pas réussi à trouver de bon alpha en suffisement peut de steps
+            alpha=alpha/2 #armijo = sufficient decrease not met, our alpha is too big
+    return None #should not happend
 
 
 def compute_cost(ps,Us_obs,G,lamb_cov_inv):
@@ -307,10 +307,12 @@ def compute_cost(ps,Us_obs,G,lamb_cov_inv):
 def compute_grad_misfit(ps,Us_obs,G,lamb_cov_inv):
     return np.matmul(G.T,(np.matmul(G,ps)-Us_obs)) + np.matmul(lamb_cov_inv,ps)
 
-
 def create_bounds(constraint):
     '''Function to build the bounds from the constraint vector to be used with scipy minimization approaches
-    -> only used for L-BFGS because scipy doesn't have NLCG and CG doesn't accept bounds...'''
+    -> only used for L-BFGS because scipy doesn't have NLCG and CG doesn't accept bounds...
+    :input: 1D array containing either a number (float/int) to serve as the upper and lower bound for the associated source load, or a np.nan
+    if no bound is provided
+    :output: list of lower and upper bounds to feed to scipy minimize function'''
     bounds = []
     for i in range(len(constraint)):
         if np.isnan(constraint[i])==False:
@@ -326,7 +328,7 @@ def lbfgs_direction(grad, s_hist, y_hist, rho_hist, m):
     for i in range(len(s_hist) - 1, -1, -1):
         alpha[i] = rho_hist[i] * np.dot(s_hist[i], q)
         q -= alpha[i] * y_hist[i]
-    gk = np.dot(s_hist[-1], y_hist[-1]) / np.dot(y_hist[-1], y_hist[-1])  #gamma k  used to compute H0k so that when doing linesearch alpha = 1 is often accepted as explained in Nocedal
+    gk = np.dot(s_hist[-1], y_hist[-1]) / np.dot(y_hist[-1], y_hist[-1]) #gamma k used to compute H0k so that when doing linesearch alpha = 1 is often accepted as explained in Nocedal
     r = gk * q #we chose H0 = gamma k*Identity  so r is just gk * q  
     for i in range(len(s_hist)):
         beta = rho_hist[i] * np.dot(y_hist[i], r)
@@ -354,7 +356,7 @@ def log_run(E,v,lamb,epsilon,sigma,constraint,it,maxit,elapsed_time,logpath):
     filename = f'{logpath}/meta_sig_{sigma}_lamb_{lamb}.json'    
     with open(filename, 'w') as file:
         json.dump(dic, file)
-
+        
 #######################################################"
 
 def disp2load(E,v,rs,xs, ys, Us, mode=None, lamb=1, epsilon=1e-2, gamma_coeff=0.1,sigma=1,G=None,Cm1=None,
@@ -373,12 +375,12 @@ def disp2load(E,v,rs,xs, ys, Us, mode=None, lamb=1, epsilon=1e-2, gamma_coeff=0.
     source_number = len(rs[:,0,0,0])*len(rs[0,:,0,0])
     
     Us_formatted = Us.reshape((data_number,1)) # trois premier les éléments de la première ligne, puis 3 suivant ce sont les 3 de la seconde ligne..
-    if isinstance(G, np.ndarray)==False: #checking if G already precomputed and uses it if so : massive time gain for L-curve...
+    if isinstance(G, np.ndarray)==False: #checking if G already precomputed and uses it if so : time gain for L-curve...
         G = build_G(rs,xs,ys,l,m)
     
-    if isinstance(constraint,np.ndarray)==True: #checking if there are constraints 
+    if isinstance(constraint,np.ndarray)==True: #checking if there are constraints provided 
         constraint = constraint.reshape(source_number) #reshaping the constraint to match that of ps = inverted parameters vector
-        constraint_idx = np.where(np.isnan(constraint)==False)[0]
+        constraint_idx = np.where(np.isnan(constraint)==False)[0] 
     
     t1 = time.time() #
     ############################### INVERSION STARTING HERE ######################
