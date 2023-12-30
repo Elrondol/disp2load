@@ -19,13 +19,13 @@ G = np.load('/home/parisnic/project/disp2load/G.npy') #load G qui a déjà été
 
 mode = 'lbfgs' #None, linear, lbfgs, nlcg, nlcg_fast,lbfgs_fast, TV
 epsilon=1e-35
-maxit = 2e2
+maxit = 1e3
 Cm1 = np.load('/home/parisnic/project/disp2load/gaussian_1.0.npy') #'gaussian' or 'laplacian' to compute, but we can precompute it to save time
 sigma =  1.0 #penser à use 
 #lambs = np.logspace(-24,6,100)
-lambs = [1.3219411484660289e-12,2.1544346900318868e-11,1.3219411484660289e-12]
+lambs = [1.3219411484660289e-12,2.1544346900318868e-11]
 
-constraint = np.load('constraint.npy')
+constraint = None #np.load('constraint.npy')
 
 
 if isinstance(constraint,np.ndarray)==True:
