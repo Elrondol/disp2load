@@ -3,12 +3,13 @@ import pyproj
 from pyproj import Proj, Transformer
 import glob
 import re
+import json
 
 #considère que E et  v sont des constantes, il faudra juste donner à manger au code la matrice avec les valeur de p et la les boundaries 
 #du premier et dernier vectice et il s'occupe alors de créér un maillage régulier avec des vectices aayant le 
 
 def create_source_mesh(x0,x1,y0,y1,ps):
-    """This function creates a 2D mesh for which each cell is associated with a source and contains the coordinates of the 4 vertices of the 
+    """This function creates a 2D mesh for which each cell is associated with a source and contains the 2 (x,y) coordinates of the 4 vertices of the 
     rectangular source.
     :input: x0 = smallest x value, x1 = largest x value, y0 = smallest y value, y1 = largest y value
     :output: numpy array of shape (ny,nx,4,2)"""
@@ -180,8 +181,29 @@ def second_deriv_Lcurve(norm_regu,misfit,lambda_list,lambda_range):
     return x_sorted_cropped, d2y_dx2, lambda_list_cropped
 
 
+def log_run(E,v,lamb,epsilon,sigma,constraint,it,maxit,elapsed_time,logpath):
+    """ Creates a log file for the inversion """
+    #not gonna put the coordinates in the file assumed to be known because we always use the same G matrix.
+    if isinstance(constraint,np.ndarray)==True:
+        constraint = True #donc soit None soit True
+    dic = {
+    'E': E,
+    'v': v,
+    'epsilon': epsilon,
+    'lamb' : lamb, 
+    'sigma' : sigma,
+    'constraint' : constraint,
+    'iterations' : it,
+    'maxit' : maxit,
+    'elapsed_time' : elapsed_time
+}
+    filename = f'{logpath}/meta_sig_{sigma}_lamb_{lamb}.json'    
+    with open(filename, 'w') as file:
+        json.dump(dic, file)
+
 
 def extract_part(file_name):
+    """"Function to list all the metadata files in a directory -> serves in the notebook to import the result from runs alongside their metadata to make the L-curve for instance"""
     start_index = file_name.rfind('/meta') + 5
     end_index = file_name.rfind('.json')
     return file_name[start_index:end_index]
