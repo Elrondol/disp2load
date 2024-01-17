@@ -275,7 +275,7 @@ def build_gaussian_inv(rs, sigma, normalized=False):
 ############ FUNCTION FOR LINEAR INVERSION WITH INVERSE COVARIANCE MATRIX REGULARIZATION ############## 
 #######################################################################################################
 
-def inversion_linear(G,Us_formatted,lamb,Cm1,rs,sig=None):
+def inversion_linear(G,Us_formatted,lamb,Cm1,rs,sigma):
     """ linear inversion """
     if isinstance(Cm1, np.ndarray)==False: #checking if the covariance matrix was already provided
         if Cm1=='laplacian' or Cm1=='Laplacian': #if not provided it will create the covariance matrix according the string
@@ -337,7 +337,7 @@ def linesearch_armijo(alpha,Us_obs,G,ps,delta_m,lamb_cov_inv):
 
 ######################## FUNCTIONS FOR THE INVERSION WITH DIFFERENT ALGORTHMS ##### 
 
-def inversion_TV(G,Us_formatted,lamb,gamma_coeff,maxit,source_number):
+def inversion_TV(G,Us_formatted,lamb,gamma_coeff,maxit,source_number,epsilon):
     Gstar = G #renaming the variable to be more consistant with the algorithm from Mallat (in book G = \phi*) -> in algo renamed G
     G = Gstar.T # equivalent to G^T in algo  
     ps = np.zeros((source_number,1)) #x in the algo
@@ -361,17 +361,80 @@ def inversion_TV(G,Us_formatted,lamb,gamma_coeff,maxit,source_number):
     return ps,k
 
 
-def inversion_steepest(G,Us,lamb,Cm1,rs,maxit,source_number,sig=None):
-    print('tbd')
+def inversion_steepest(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma):
+    Us_formatted = Us.reshape((data_number,)) #reshaping data to be match the following implementations that us shape n, or m,
+    if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
+        if Cm1=='laplacian' or Cm1=='Laplacian':
+            Cm1 =  build_laplacian(rs) #creating the covariance matrix in case it was not provided
+        elif Cm1=='Gaussian' or Cm1=='gaussian':
+            Cm1 = build_gaussian_inv(rs,sigma)
+    lamb_cov_inv = lamb*Cm1.T@Cm1 #precomputing
+    alpha = 1
+    conv = False
+    i = 0
+    ps = np.ones((source_number,))
+    while conv==False and i<maxit:
+        i +=1 
+        delta_m = -compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv) # - nabla f_k in algo
+        alpha_old = alpha #use the last alpha as the  first guess 
+        alpha = linesearch(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv) #we added a condition to max 20 iterations to find alpha
+        if alpha==None: #in case linesearch with wolfe conditions failed to find a good lambda, we try again with only the armijo condition 
+            alpha = linesearch_armijo(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv) #mettre juste condition d'armijo si le strong wolfe n'arrive pas à converger
+        if alpha<1e-10:
+            alpha=1e-10
+        ps += alpha*delta_m #x_{k+1}
+        if isinstance(constraint,np.ndarray)==True:
+            ps[constraint_idx] = constraint[constraint_idx] #adding the constraint 
+        if np.dot(alpha*delta_m,alpha*delta_m) < epsilon: #checking for convergence
+            conv = True
     return ps, i
 
-def inversion_nlcg():
-    print('tbd')
-    return None 
+def inversion_nlcg(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma):
+    Us_formatted = Us.reshape((data_number,))
+    ps = np.ones((source_number,))
+    if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
+        if Cm1=='laplacian' or Cm1=='Laplacian':
+            Cm1 =  build_laplacian(rs)
+        elif Cm1=='Gaussian' or Cm1=='gaussian':
+            Cm1 = build_gaussian_inv(rs,sigma)
+    lamb_cov_inv = lamb*Cm1.T@Cm1
+    rk = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv)
+    pk = -rk #first direction is identical to steepest descent 
+    conv = False
+    alpha = 1
+    i = 0 #k in the algo
+    while conv==False and i<maxit:
+        rkTrk = np.dot(rk,rk) #keeping the grad(f_k)^Tgrad(f_k) 
+        alpha_old = alpha #
+        alpha = linesearch(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv)
+        if alpha==None:
+            alpha = linesearch_armijo(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv) #only using armijo if curvature condition fails
+        ps += alpha*pk #computing the x_{k+1} 
+        if isinstance(constraint,np.ndarray)==True: #checking if a constraint was added
+            ps[constraint_idx] = constraint[constraint_idx] #adding the constraint to the computed x 
+        rk = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv) # grad(f_{k+1}) in the algo
+        beta = np.dot(rk,rk)/rkTrk # same as in the algo, it's beta 
+        pk = -rk + beta*pk #computing the conjugated direction that will be used in the next iteration to compute x_{k+1} as in the algo
+        i += 1 #increment
+        if np.dot(alpha*pk,alpha*pk) < epsilon: #checking for convergence
+            conv = True
+    return ps,i
 
-def inversion_CG_scipy():
-    print('tbd')
-    return None
+
+def inversion_CG_scipy(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma):
+    Us_formatted = Us.reshape((data_number,)) #formatting the arrays because scipy only accepts 1D arrays
+    ps = np.ones((source_number,)) #first guess -> x0 in the algorithm
+    if isinstance(Cm1, np.ndarray)==False: #checks if a covariance matrix was already provided
+        if Cm1=='laplacian' or Cm1=='Laplacian':
+            Cm1 =  build_laplacian(rs)
+        elif Cm1=='Gaussian' or Cm1=='gaussian':
+            Cm1 = build_gaussian_inv(rs,sigma)
+    lamb_cov_inv = lamb*Cm1.T@Cm1
+    result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_cov_inv), method='CG', tol=epsilon, jac=compute_grad_misfit,
+                      options={'maxiter': maxit})
+    ps = result.x
+    i = result.nit
+    return ps,i
 
 ####################### LBFGS ####################
 
@@ -389,18 +452,79 @@ def lbfgs_direction(grad, s_hist, y_hist, rho_hist, m):
         r += (alpha[i] - beta) * s_hist[i]
     return r
         
-def inversion_lbfgs():
+def inversion_lbfgs(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma):
     """ Performs the ivnersion with the LBFGS algorithm"""
-    print('tbd')
-    return None 
-        
+    Us_formatted = Us.reshape((data_number,))
+    ps = np.ones((source_number,))
+    if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
+        if Cm1=='laplacian' or Cm1=='Laplacian':
+            Cm1 =  build_laplacian(rs)
+        elif Cm1=='Gaussian' or Cm1=='gaussian':
+            Cm1 = build_gaussian_inv(rs,sigma)
+    lamb_cov_inv = lamb*Cm1.T@Cm1
+    i = 0 #using i as our index instead of k from the algorithm, be careful it's not the same as the i in the loops to estimate the approximation of the inverse of the Hessian 
+    m = 5 #number of s and y pairs to keep to act as the hessian estimate, 5 is supposed to be enough based on Nocedal's book
+    conv = False
+    s_hist = []
+    y_hist = []
+    rho_hist = []
+    q = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv) #same name as in the algo
+    while conv==False and i<maxit:
+        if i == 0:
+            pk = -q #first iteration we don't have previous descent direction, so we simply do a steepest descent iteration, like in algo
+        else:
+            pk = -lbfgs_direction(q, s_hist, y_hist, rho_hist, m) #performs the double loop in the algo to get H_k grad(f_k) = r in the algo
+        alpha = linesearch(alpha=1,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv) #start with alpha=1 because we use the scaler where H0k = gk I
+        if alpha==None:
+            alpha = linesearch_armijo(alpha=1,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv) #mettre juste condition d'armijo si le strong wolfe n'arrive pas à converger
+        if alpha<1e-10:
+            alpha=1e-10 #if still managed to fail to estimate alpha then we use this ad hoc value 
+        ps_old = ps.copy()
+        ps += alpha*pk
+        if isinstance(constraint,np.ndarray)==True: #if the variable constraint is an array it means that we provided constraints
+            ps[constraint_idx] = constraint[constraint_idx] #then we constrain the solution with the values in the constraint array
+        sk = ps-ps_old #vector with shape (source_number,) same as sk in algo
+        q_old = q.copy()
+        q = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv)
+        yk = q-q_old #vecotr shape (source_number,), same as yk in the algo
+        if np.linalg.norm(yk) < epsilon: #we use this norm for convergence criterion otherwise we have trouble as we may divide by 0.
+            break
+        rho_k = 1 / np.dot(yk, sk) #rho_k in algo
+        if len(s_hist) == m: #discarding the oldest pair of s and y  with the computed rho
+            s_hist.pop(0)
+            y_hist.pop(0)
+            rho_hist.pop(0)
+        s_hist.append(sk) #and appending the new ones
+        y_hist.append(yk)
+        rho_hist.append(rho_k)
+        i += 1 # k = k+1 in algo
+    return ps, i
+
+
 #######################  LBFGS WITH SCIPY  #####################
 
-def inversion_lfbgs_scipy():
-    print('tbd')
-    return None
+def inversion_lfbgs_scipy(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma):
+    Us_formatted = Us.reshape((data_number,))
+    ps = np.ones((source_number,))
+    if isinstance(Cm1, np.ndarray)==False: #checking if an inverse covariance matrix was provided 
+        if Cm1=='laplacian' or Cm1=='Laplacian': #if not then we need to create the inverse covariance matrix
+            Cm1 =  build_laplacian(rs)
+        elif Cm1=='Gaussian' or Cm1=='gaussian':
+            Cm1 = build_gaussian_inv(rs,sigma)
+    lamb_cov_inv = lamb*Cm1.T@Cm1 # lambda Cm-1 in the algo 
+    if isinstance(constraint,np.ndarray)==True: #checking if a constraint was added
+        ps[constraint_idx] = constraint[constraint_idx] #we make the first guess start with the correct value
+        bounds = create_bounds(constraint)#we create bounds equal to our constraints for the specific ps values that need it, that function is a wrapper to convert our                   constraints to constraints accepted by scipy   
+        result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_cov_inv), method='L-BFGS-B', tol=epsilon, jac=compute_grad_misfit,
+                     bounds=bounds,options={'maxiter': maxit})
+    else:
+        result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_cov_inv), method='L-BFGS-B', tol=epsilon, jac=compute_grad_misfit,
+                         options={'maxiter': maxit})
+    ps = result.x
+    i = result.nit
+    return ps, i
         
-        
+
 def create_bounds(constraint):
     '''Function to build the bounds from the constraint vector to be used with scipy minimization approaches
     -> only used for L-BFGS because scipy doesn't have NLCG and CG doesn't accept bounds...
@@ -416,7 +540,6 @@ def create_bounds(constraint):
     return bounds
 
 
-        
         
 ####################################################### WRAPPER FOR THE INVERSION ###################
 
@@ -479,188 +602,39 @@ def disp2load(E,v,rs,xs, ys, Us, mode=None, lamb=1, epsilon=1e-2, gamma_coeff=0.
     if isinstance(constraint,np.ndarray)==True: #checking if there are constraints provided 
         constraint = constraint.reshape(source_number) #reshaping the constraint to match that of ps = inverted parameters vector (x in the algo)
         constraint_idx = np.where(np.isnan(constraint)==False)[0] #the constraint array contains floats and nan values, we keep in memory the locaiton of the non nan idx 
-    
+    else:
+        constraint_idx = None
+        
     t1 = time.time() # used to log the run
     ############################### INVERSION STARTING HERE ######################
     
     if mode==None: #without regularization and linear inversion   
         ps = np.linalg.solve(G.T@G,G.T@Us_formatted) #Us_formatted is the data vector
-        
     elif mode.lower()=='linear': #linear inversion using a chosen Covariance matrix for the regularisation
-        if isinstance(Cm1, np.ndarray)==False: #checking if the covariance matrix was already provided
-            if Cm1=='laplacian' or Cm1=='Laplacian': #if not provided it will create the covariance matrix according the string
-                Cm1 =  build_laplacian(rs)
-            elif Cm1=='Gaussian' or Cm1=='gaussian':
-                Cm1 = build_gaussian_inv(rs,sigma)
-        GTG = G.T@G
-        GTD = G.T@Us_formatted
-        ps = np.linalg.solve(GTG+lamb*Cm1.T@Cm1,GTD) #linear inversion, lamb is the lambda in the formulation and Cm1 is the inverse covariance matrix
+        ps = inversion_linear(G,Us_formatted,lamb,Cm1,rs,sigma)
     #################################################################################################################################
     elif mode.lower()=='tv': #regularization with Total variation (TV) -> non-linear scheme 
-        Gstar = G #renaming the variable to be more consistant with the algorithm from Mallat (in book G = \phi*) -> in algo renamed G
-        G = Gstar.T # equivalent to G^T in algo  
-        ps = np.zeros((source_number,1)) #x in the algo
-        b = G@Us_formatted #equivalent to G^T d_obs in algo 
-        T = lamb #threshold for the soft thresholding -> the higher the threshold the lower the smoothing 
-        hessian = G@Gstar #equivalent to G^T G
-        gamma = gamma_coeff/np.max(np.abs(hessian)) #gamma is the step -> same as in algo   and gamma coef is the xi in the algo 
-        k = 0
-        conv = False
-        while conv==False and k<maxit:#
-            ps_old = ps.copy() #keeping the old values to compare with the new ones and check for convergence
-            #gradient descent
-            ps_bar = ps+gamma*(b-hessian@ps) # x bar in the algo
-            #soft thresholding 
-            for i in range(source_number):
-                ps[i,0] = ps_bar[i,0]*np.max([1-(gamma*T)/np.abs(ps_bar[i,0]),0]) #computing x_{k+1} in the algo,  
-            res = ((ps-ps_old).T@(ps-ps_old))[0][0] #checking convergence
-            if  res < epsilon: 
-                conv = True
-            k += 1 #incrementing iteration
+        ps, i = inversion_TV(G,Us_formatted,lamb,gamma_coeff,maxit,source_number,epsilon)
     #################################################################################################################################
     elif mode.lower()=='steepest': #Steepest descent 
-        Us_formatted = Us.reshape((data_number,)) #reshaping data to be match the following implementations that us shape n, or m,
-        if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
-            if Cm1=='laplacian' or Cm1=='Laplacian':
-                Cm1 =  build_laplacian(rs) #creating the covariance matrix in case it was not provided
-            elif Cm1=='Gaussian' or Cm1=='gaussian':
-                Cm1 = build_gaussian_inv(rs,sigma)
-        lamb_cov_inv = lamb*Cm1.T@Cm1 #precomputing
-        alpha = 1
-        conv = False
-        i = 0
-        ps = np.ones((source_number,))
-        while conv==False and i<maxit:
-            i +=1 
-            delta_m = -compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv) # - nabla f_k in algo
-            alpha_old = alpha #use the last alpha as the  first guess 
-            alpha = linesearch(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv) #we added a condition to max 20 iterations to find alpha
-            if alpha==None: #in case linesearch with wolfe conditions failed to find a good lambda, we try again with only the armijo condition 
-                alpha = linesearch_armijo(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv) #mettre juste condition d'armijo si le strong wolfe n'arrive pas à converger
-            if alpha<1e-10:
-                alpha=1e-10
-            ps += alpha*delta_m #x_{k+1}
-            if isinstance(constraint,np.ndarray)==True:
-                ps[constraint_idx] = constraint[constraint_idx] #adding the constraint 
-            if np.dot(alpha*delta_m,alpha*delta_m) < epsilon: #checking for convergence
-                conv = True
+        ps, i = inversion_steepest(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma)
     #################################################################################################################################
-    elif mode.lower()=='nlcg': #mode NLCG -> faudra refaire au propre sans doute -> en appelant ces approches NLCG fast
-        Us_formatted = Us.reshape((data_number,))
-        ps = np.ones((source_number,))
-        if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
-            if Cm1=='laplacian' or Cm1=='Laplacian':
-                Cm1 =  build_laplacian(rs)
-            elif Cm1=='Gaussian' or Cm1=='gaussian':
-                Cm1 = build_gaussian_inv(rs,sigma)
-        lamb_cov_inv = lamb*Cm1.T@Cm1
-        rk = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv)
-        pk = -rk #first direction is identical to steepest descent 
-        conv = False
-        alpha = 1
-        i = 0 #k in the algo
-        while conv==False and i<maxit:
-            # Gpk = np.matmul(G,pk) #computing the 
-            #precompute the  r.T@r
-            rkTrk = np.dot(rk,rk) #keeping the grad(f_k)^Tgrad(f_k) 
-            alpha_old = alpha #
-            alpha = linesearch(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv)
-            if alpha==None:
-                alpha = linesearch_armijo(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv) #only using armijo if curvature condition fails
-            ps += alpha*pk #computing the x_{k+1} 
-            if isinstance(constraint,np.ndarray)==True: #checking if a constraint was added
-                ps[constraint_idx] = constraint[constraint_idx] #adding the constraint to the computed x 
-            rk = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv) # grad(f_{k+1}) in the algo
-            beta = np.dot(rk,rk)/rkTrk # same as in the algo, it's beta 
-            pk = -rk + beta*pk #computing the conjugated direction that will be used in the next iteration to compute x_{k+1} as in the algo
-            i += 1 #increment
-            if np.dot(alpha*pk,alpha*pk) < epsilon: #checking for convergence
-                conv = True
+    elif mode.lower()=='nlcg': #NLCG
+        ps, i = inversion_nlcg(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma)
     #################################################################################################################################
-    elif mode.lower()=='nlcg_fast':
-        Us_formatted = Us.reshape((data_number,)) #formatting the arrays because scipy only accepts 1D arrays
-        ps = np.ones((source_number,)) #first guess -> x0 in the algorithm
-        if isinstance(Cm1, np.ndarray)==False: #checks if a covariance matrix was already provided
-            if Cm1=='laplacian' or Cm1=='Laplacian':
-                Cm1 =  build_laplacian(rs)
-            elif Cm1=='Gaussian' or Cm1=='gaussian':
-                Cm1 = build_gaussian_inv(rs,sigma)
-        lamb_cov_inv = lamb*Cm1.T@Cm1
-        result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_cov_inv), method='CG', tol=epsilon, jac=compute_grad_misfit,
-                          options={'maxiter': maxit})
-        ps = result.x
+    elif mode.lower()=='cg_fast': #Conjugate gradient from scipy 
+        ps, i = inversion_CG_scipy(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma)
     #################################################################################################################################
     elif mode.lower()=='l-bfgs' or mode.lower()=='lbfgs': #mode L-BFGS
-        Us_formatted = Us.reshape((data_number,))
-        ps = np.ones((source_number,))
-        if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
-            if Cm1=='laplacian' or Cm1=='Laplacian':
-                Cm1 =  build_laplacian(rs)
-            elif Cm1=='Gaussian' or Cm1=='gaussian':
-                Cm1 = build_gaussian_inv(rs,sigma)
-        lamb_cov_inv = lamb*Cm1.T@Cm1
-        i = 0 #using i as our index instead of k from the algorithm, be careful it's not the same as the i in the loops to estimate the approximation of the inverse of the Hessian 
-        m = 5 #number of s and y pairs to keep to act as the hessian estimate, 5 is supposed to be enough based on Nocedal's book
-        conv = False
-        s_hist = []
-        y_hist = []
-        rho_hist = []
-        q = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv) #same name as in the algo
-        while conv==False and i<maxit:
-            if i == 0:
-                pk = -q #first iteration we don't have previous descent direction, so we simply do a steepest descent iteration, like in algo
-            else:
-                pk = -lbfgs_direction(q, s_hist, y_hist, rho_hist, m) #performs the double loop in the algo to get H_k grad(f_k) = r in the algo
-            alpha = linesearch(alpha=1,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv) #start with alpha=1 because we use the scaler where H0k = gk I
-            if alpha==None:
-                alpha = linesearch_armijo(alpha=1,Us_obs=Us_formatted,G=G,ps=ps,delta_m=pk,lamb_cov_inv=lamb_cov_inv) #mettre juste condition d'armijo si le strong wolfe n'arrive pas à converger
-            if alpha<1e-10:
-                alpha=1e-10 #if still managed to fail to estimate alpha then we use this ad hoc value 
-            ps_old = ps.copy()
-            ps += alpha*pk
-            if isinstance(constraint,np.ndarray)==True: #if the variable constraint is an array it means that we provided constraints
-                ps[constraint_idx] = constraint[constraint_idx] #then we constrain the solution with the values in the constraint array
-            sk = ps-ps_old #vector with shape (source_number,) same as sk in algo
-            q_old = q.copy()
-            q = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv)
-            yk = q-q_old #vecotr shape (source_number,), same as yk in the algo
-            if np.linalg.norm(yk) < epsilon: #we use this norm for convergence criterion otherwise we have trouble as we may divide by 0.
-                break
-            rho_k = 1 / np.dot(yk, sk) #rho_k in algo
-            if len(s_hist) == m: #discarding the oldest pair of s and y  with the computed rho
-                s_hist.pop(0)
-                y_hist.pop(0)
-                rho_hist.pop(0)
-            s_hist.append(sk) #and appending the new ones
-            y_hist.append(yk)
-            rho_hist.append(rho_k)
-            i += 1 # k = k+1 in algo
+        ps, i = inversion_lbfgs(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma)
     #################################################################################################################################
     elif mode.lower()=='l-bfgs_fast' or mode.lower()=='lbfgs_fast': #mode L-BFGS fast avec scipy alsos uses Wolfe conditions to asses the value of alpha
-        Us_formatted = Us.reshape((data_number,))
-        ps = np.ones((source_number,))
-        if isinstance(Cm1, np.ndarray)==False: #checking if an inverse covariance matrix was provided 
-            if Cm1=='laplacian' or Cm1=='Laplacian': #if not then we need to create the inverse covariance matrix
-                Cm1 =  build_laplacian(rs)
-            elif Cm1=='Gaussian' or Cm1=='gaussian':
-                Cm1 = build_gaussian_inv(rs,sigma)
-        lamb_cov_inv = lamb*Cm1.T@Cm1 # lambda Cm-1 in the algo 
-        if isinstance(constraint,np.ndarray)==True: #checking if a constraint was added
-            ps[constraint_idx] = constraint[constraint_idx] #we make the first guess start with the correct value
-            bounds = create_bounds(constraint)#we create bounds equal to our constraints for the specific ps values that need it, that function is a wrapper to convert our                   constraints to constraints accepted by scipy   
-            result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_cov_inv), method='L-BFGS-B', tol=epsilon, jac=compute_grad_misfit,
-                         bounds=bounds,options={'maxiter': maxit})
-        else:
-            result = minimize(fun=compute_cost, x0=ps, args=(Us_formatted,G,lamb_cov_inv), method='L-BFGS-B', tol=epsilon, jac=compute_grad_misfit,
-                             options={'maxiter': maxit})
-        ps = result.x
+        ps, i = inversion_lfbgs_scipy(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma)
     
     if logpath!=None: #can log various parameters of the run
         elapsed_time = time.time()-t1
         if mode.lower()=='linear' or mode==None:
             i = None
-        elif mode.lower()=='lbfgs_fast' or mode.lower()=='nlcg_fast': 
-            i = result.nit #retrieves the number of itrations from scipy resulting solution 
         utils.log_run(E,v,lamb,epsilon,sigma,constraint,i,maxit,elapsed_time,logpath)
     
     ps = ps.reshape(rs[:,:,0,0].shape) #reshaping to go from a parameter vector to a parameter 2D array as it initially was.
