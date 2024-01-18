@@ -1,0 +1,1 @@
+{"E": 60000000000.0, "v": 0.25, "epsilon": 0.001, "lamb": 1e-07, "sigma": 1, "constraint": true, "iterations": 51, "maxit": 1000000.0, "elapsed_time": 0.009125709533691406}

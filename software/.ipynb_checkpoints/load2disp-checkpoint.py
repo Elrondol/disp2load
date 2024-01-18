@@ -3,6 +3,21 @@ from scipy.integrate import quad
 from numpy import arctan, tan, cos, sin, arccos, arcsin, sqrt, log, log10, pi
 
 def compute_I1(r, z):
+    """
+    Computes I1 from the paper.
+
+    Parameters
+    ----------
+    r : numpy.ndarray
+        Input array of shape (nv, 2) representing vertices, where nv is the number of vertices. 
+    z : float
+        Depth.
+
+    Returns
+    -------
+    numpy.ndarray
+        Computed I1.
+    """
     nv = r.shape[0]
     rot = np.array([[0, 1], [-1, 0]])
     I1 = np.array([0, 0])
@@ -31,6 +46,21 @@ def compute_I1(r, z):
     return I1
 
 def compute_I2(r, z):
+    """
+    Computes I2 from the paper.
+
+    Parameters
+    ----------
+    r : numpy.ndarray
+        Input array of shape (nv, 2) representing vertices, where nv is the number of vertices. 
+    z : float
+        Depth.
+
+    Returns
+    -------
+    numpy.ndarray
+        Computed I2.
+    """
     nv = r.shape[0]
     rot = np.array([[0, 1], [-1, 0]])
     I2 = 0
@@ -59,6 +89,21 @@ def compute_I2(r, z):
     return I2
 
 def compute_I3(r, z):
+    """
+    Computes I3 from the paper.
+
+    Parameters
+    ----------
+    r : numpy.ndarray
+        Input array of shape (nv, 2) representing vertices, where nv is the number of vertices. 
+    z : float
+        Depth.
+
+    Returns
+    -------
+    numpy.ndarray
+        Computed I3.
+    """
     nv = r.shape[0]
     rot = np.array([[0, 1], [-1, 0]])
     I3 = 0
@@ -87,6 +132,21 @@ def compute_I3(r, z):
     return I3
 
 def compute_I4(r, z):
+    """
+    Computes I4 from the paper.
+
+    Parameters
+    ----------
+    r : numpy.ndarray
+        Input array of shape (nv, 2) representing vertices, where nv is the number of vertices. 
+    z : float
+        Depth.
+
+    Returns
+    -------
+    numpy.ndarray
+        Computed I4.
+    """
     nv = r.shape[0]
     rot = np.array([[0, 1], [-1, 0]])
     I4 = 0
@@ -116,6 +176,26 @@ def compute_I4(r, z):
     return I4
 
 def compute_S1i(a, e, z, t0, t1):
+    """
+    Computes S1i from d'Urso and Marmo 2013.
+
+    Parameters
+    ----------
+    a : float
+        Product between position vectors, see a_i in the paper for the formulation.
+    e : float
+        Computed as : d-b**2/a, see e_i in the appendix A of the paper.
+    z : float
+        Depth.
+    t0 : float
+        Computed as : b/a, see t_0i in the appendix A of the paper.
+    t1 : float
+        Computed as : 1+b/a, see t_1i in the appendix A of the paper.
+    Returns
+    -------
+    float
+        Computed S1i.
+    """
     S1i = sqrt(a) * t0 - sqrt(a) * t1
 
     if e - z**2 != 0:
@@ -137,16 +217,67 @@ def compute_S1i(a, e, z, t0, t1):
     return S1i / sqrt(a)
 
 def compute_S2i(a, e, t0, t1):
+    """
+    Computes S2i from d'Urso and Marmo 2013.
+
+    Parameters
+    ----------
+    a : float
+        Product between position vectors, see a_i in the paper for the formulation.
+    e : float
+        Computed as : d-b**2/a, see e_i in the appendix A of the paper.
+    t0 : float
+        Computed as : b/a, see t_0i in the appendix A of the paper.
+    t1 : float
+        Computed as : 1+b/a, see t_1i in the appendix A of the paper.
+    Returns
+    -------
+    float
+        Computed S2i.
+    """
     S2i = log((a * t1 + np.sqrt(a * (a * t1**2 + e))) / (a * t0 + np.sqrt(a * (a * t0**2 + e)))) / sqrt(a)
     return S2i
 
 def compute_S3i(a, A, B, t0, t1):
+    """
+    Computes S3i from d'Urso and Marmo 2013.
+
+    Parameters
+    ----------
+    a : float
+        Product between position vectors, see a_i in the paper for the formulation.
+    A : float
+        Computed as : c / a - b**2 / a**2, not expressed explicitly in the paper.
+    B : float
+        Computed as : d / a - b**2 / a**2 , not expressed explicitly in the paper.
+    t0 : float
+        Computed as : b/a, see t_0i in the appendix A of the paper.
+    t1 : float
+        Computed as : 1+b/a, see t_1i in the appendix A of the paper.
+    Returns
+    -------
+    float
+        Computed S3i.
+    """
     S3i = arctan(t1 * sqrt((B - A) / (A * (B + t1**2)))) - arctan(t0 * sqrt((B - A) / (A * (B + t0**2))))
     S3i = S3i * sqrt((B - A) / A) + log((t1 + sqrt(B + t1**2)) / (t0 + sqrt(B + t0**2))) / sqrt(a)
     return S3i
 
 
 def alpha(r):
+    """
+    Computes alpha from the paper.
+
+    Parameters
+    ----------
+    r : numpy.ndarray
+        Input array of shape (nv, 2) representing the coordinates of the vertices.
+
+    Returns
+    -------
+    float
+        Computed alpha.
+    """
     a = 0
     for i in range(len(r)):
         ri = r[i, :]
@@ -168,21 +299,39 @@ def alpha(r):
     return a
 
 def load2disp(xyz, r, p, E, v):
-    """This function computes the displacement of a given point at coordinates xyz for a given source of vertices r which is a polygon of any shape 
-      
-    The required shape for xyz is (3,) and the required size for r is (n,2). 
-    For a square source has a shape (4,2): [[x_bot_left,y_bot_left],
-                                           [x_bot_right],[y_bot_right],
-                                           [x_top_right],[y_top_right]
-                                           [x_top_left] ,[y_top_left]] -> anti clockwise order"""
-    
+    """
+    Computes the displacement of a given point at coordinates xyz for a given source with vertices r which is a polygon of any shape.
+
+    The required shape for xyz is (3,) and the required size for r is (n,2).
+    For a square source has a shape (4,2): 
+    [[x_bot_left,y_bot_left],
+     [x_bot_right],[y_bot_right],
+     [x_top_right],[y_top_right]
+     [x_top_left] ,[y_top_left]] -> anti-clockwise order
+
+    Parameters
+    ----------
+    xyz : ndarray
+        Coordinates of the point (3,).
+    r : ndarray
+        Vertices of the source (n,2).
+    p : float
+        Load of the source.
+    E : float
+        Young's Modulus.
+    v : float
+        Poisson's ratio.
+
+    Returns
+    -------
+    ndarray
+        Displacement vector (3,1).
+    """
     # Translating the coordinates of the vertices so that the considered point is located at the middle
     r_translated = np.zeros(r.shape)
     r_translated[:,0] = -r[:,0] + xyz[0] 
     r_translated[:,1] = -r[:,1] + xyz[1]   
     z = xyz[2]
-    
-    # print(r_translated)
     
     # Lame constants
     l = E * v / ((1 + v) * (1 - 2 * v))

@@ -5,14 +5,28 @@ import glob
 import re
 import json
 
-#considère que E et  v sont des constantes, il faudra juste donner à manger au code la matrice avec les valeur de p et la les boundaries 
-#du premier et dernier vectice et il s'occupe alors de créér un maillage régulier avec des vectices aayant le 
-
 def create_source_mesh(x0,x1,y0,y1,ps):
-    """This function creates a 2D mesh for which each cell is associated with a source and contains the 2 (x,y) coordinates of the 4 vertices of the 
-    rectangular source.
-    :input: x0 = smallest x value, x1 = largest x value, y0 = smallest y value, y1 = largest y value
-    :output: numpy array of shape (ny,nx,4,2)"""
+    """
+    This function creates a 2D mesh for which each cell is associated with a rectangular source and contains its 4 (x, y) coordinates.
+
+    Parameters
+    ----------
+    x0 : float
+        Smallest x value.
+    x1 : float
+        Largest x value.
+    y0 : float
+        Smallest y value.
+    y1 : float
+        Largest y value.
+    ps : ndarray
+        Load distribution.
+
+    Returns
+    -------
+    ndarray
+        Numpy array of shape (ny, nx, 4, 2).
+    """
     vertice_mesh = np.zeros((ps.shape[0],ps.shape[1],4,2))
     x_num = ps.shape[1]
     y_num = ps.shape[0]
@@ -30,9 +44,26 @@ def create_source_mesh(x0,x1,y0,y1,ps):
 
 
 def compute_strain_tensor_at_point(Up,dx,dy,dz):
-    """Calcule le tensueur de déformation a un point donné du maillage  p , on doit lui donner à manger un array qui contient les déplacement en x y et z au point, au point d'vaant
-    et au point d'après pour faire dérivée d'ordre 2 = euler scheme d'ordre 2  
-    Up = [[u_x-1,u_x+1],[y_x-1,y_x+1],[z_x-1,z_x+1]]"""
+    """
+    Calculates the strain tensor at a given point in the mesh.
+
+    Parameters
+    ----------
+    Up : ndarray
+        Array containing displacements in x, y, and z at the point, before the point, and after the point to compute second-order derivatives.
+        Up = [[u_x-1,u_x+1],[y_x-1,y_x+1],[z_x-1,z_x+1]]
+    dx : float
+        Grid spacing in the x direction.
+    dy : float
+        Grid spacing in the y direction.
+    dz : float
+        Grid spacing in the z direction.
+
+    Returns
+    -------
+    ndarray
+        Strain tensor at the given point.
+    """
     strain_tensor = np.zeros((3,3))
     
     #computing derivatives of displacement  -> composantes normales:
@@ -52,46 +83,6 @@ def compute_strain_tensor_at_point(Up,dx,dy,dz):
     strain_tensor[2,1] = strain_tensor[1,2] = 0.5*(duzy+duyz)
     
     return strain_tensor
-
-
-
-
-def lat_lon_to_xy(latitude, longitude, zone=None):
-    # Define the projection. You can use UTM, Lambert Conformal Conic, or another projection.
-    # Here's an example using a UTM projection for the Great Salt Lake area.
-    if zone is None:
-        # Determine the UTM zone based on the longitude of the location.
-        # In this example, we're using the WGS 84 coordinate system.
-        utm_zone = int((longitude + 180) / 6) + 1
-        zone = f'EPSG:326{utm_zone:02d}'  # UTM zone for northern Utah
-        
-    # Create a pyproj transformer.
-    transformer = pyproj.Transformer.from_crs("EPSG:4326", zone, always_xy=True)
-
-    # Perform the coordinate conversion.
-    x, y = transformer.transform(longitude, latitude)
-
-    return x, y
-
-
-def xy_to_lat_lon(x, y, zone=None):
-    if zone is None:
-        # Determine the UTM zone based on the X coordinate.
-        utm_zone = int((x + 180) / 6) + 1
-        zone = f'EPSG:326{utm_zone:02d}'  # UTM zone for northern Utah
-
-    # Create a pyproj transformer.
-    transformer = pyproj.Transformer.from_crs(zone, "EPSG:4326", always_xy=True)
-
-    # Perform the coordinate conversion.
-    longitude, latitude = transformer.transform(x, y)
-
-    return latitude, longitude
-
-
-
-
-#### fucntion to convert coordinates and only requires to know the utm zone 
 
 
 def latlon2xy(latitudes, longitudes, elevations=None, projection_type='utm', zone=None, ellps='WGS84'):
@@ -149,8 +140,24 @@ def xy2latlon(x, y, projection_type='utm', zone=None, ellps='WGS84'):
 
 
 
-def is_point_inside_polygon(polygon, x, y):
-    """Function that allows to determine if a point is inside a polygon : useful to map the pressure distribution front contours """
+def is_point_inside_polygon(polygon, x, y):    
+    """
+    Function that determines if a point is inside a polygon. Useful for mapping pressure distribution front contours.
+
+    Parameters
+    ----------
+    polygon : list of tuples
+        List of (x, y) coordinates representing the polygon.
+    x : float
+        x-coordinate of the point.
+    y : float
+        y-coordinate of the point.
+
+    Returns
+    -------
+    bool
+        True if the point is inside the polygon, False otherwise.
+    """
     n = len(polygon)
     inside = False
     p1x, p1y = polygon[0]
@@ -167,7 +174,29 @@ def is_point_inside_polygon(polygon, x, y):
     return inside
 
 def second_deriv_Lcurve(norm_regu,misfit,lambda_list,lambda_range):
-    """Computes the second derivative of the L curve -> allows to detect the elbow of the L-curve"""
+    """
+    Computes the second derivative of the L curve, allowing detection of the elbow of the L-curve.
+
+    Parameters
+    ----------
+    norm_regu : ndarray
+        Array containing the norm of the regularizer (x axis of the L-curve).
+    misfit : ndarray
+        Array containing the norm of the misfit (y axis of the L-curve).
+    lambda_list : ndarray
+        Array containing the regularization parameter values.
+    lambda_range : tuple
+        Tuple containing the range of lambda values to consider.
+
+    Returns
+    -------
+    ndarray
+        x values sorted and cropped to the provided range of lambda.
+    ndarray
+        Second derivative of the L curve.
+    ndarray
+        Lambda values sorted and cropped to the provided range.
+    """
     sorted_indices = np.argsort(norm_regu)
     x_sorted = norm_regu[sorted_indices]
     y_sorted = misfit[sorted_indices]
@@ -182,10 +211,34 @@ def second_deriv_Lcurve(norm_regu,misfit,lambda_list,lambda_range):
 
 
 def log_run(E,v,lamb,epsilon,sigma,constraint,it,maxit,elapsed_time,logpath):
-    """ Creates a log file for the inversion """
-    #not gonna put the coordinates in the file assumed to be known because we always use the same G matrix.
+    """
+    Creates a log file for the inversion.
+
+    Parameters
+    ----------
+    E : float
+        Young's Modulus.
+    v : float
+        Poisson's ratio.
+    lamb : float
+        Coefficient for the regularizer term.
+    epsilon : float
+        Convergence criterion.
+    sigma : float
+        Standard deviation.
+    constraint : bool or None
+        Indicates whether a constraint is used.
+    it : int
+        Number of iterations.
+    maxit : int
+        Maximum number of iterations.
+    elapsed_time : float
+        Elapsed time for the inversion.
+    logpath : str
+        Path to store the log file.
+    """
     if isinstance(constraint,np.ndarray)==True:
-        constraint = True #donc soit None soit True
+        constraint = True
     dic = {
     'E': E,
     'v': v,
@@ -196,14 +249,26 @@ def log_run(E,v,lamb,epsilon,sigma,constraint,it,maxit,elapsed_time,logpath):
     'iterations' : it,
     'maxit' : maxit,
     'elapsed_time' : elapsed_time
-}
+    }
     filename = f'{logpath}/meta_sig_{sigma}_lamb_{lamb}.json'    
     with open(filename, 'w') as file:
         json.dump(dic, file)
 
 
 def extract_part(file_name):
-    """"Function to list all the metadata files in a directory -> serves in the notebook to import the result from runs alongside their metadata to make the L-curve for instance"""
+    """
+    Function used to extract all the names of the metadata files in a directory for importing results in the notebook.
+
+    Parameters
+    ----------
+    file_name : str
+        Full file name including path.
+
+    Returns
+    -------
+    str
+        Extracted part of the file name.
+    """
     start_index = file_name.rfind('/meta') + 5
     end_index = file_name.rfind('.json')
     return file_name[start_index:end_index]
