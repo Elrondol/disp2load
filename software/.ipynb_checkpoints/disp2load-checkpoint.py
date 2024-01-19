@@ -311,7 +311,7 @@ def build_G(rs,xs,ys,l,m):
     Parameters
     ----------
     rs : ndarray
-        Source mesh obtained with create_source_mesh. See the function for details.
+        Source mesh obtained with create_source_mesh from utils module. See the function for details.
     xs : ndarray
         x locations of the stations.
     ys : ndarray
@@ -387,7 +387,7 @@ def build_laplacian(rs):
     Parameters
     ----------
     rs : ndarray
-        Mesh created with the function create_source_mesh. Details of the mesh are described in the documentation of that function.
+        Mesh created with the function create_source_mesh from utils module. Details of the mesh are described in the documentation of that function.
 
     Returns
     -------
@@ -430,7 +430,7 @@ def build_gaussian_inv(rs, sigma, normalized=False):
     Parameters
     ----------
     rs : ndarray
-        Mesh created with the function create_source_mesh. Details of the mesh are described in the documentation of that function.
+        Mesh created with the function create_source_mesh from utils module. Details of the mesh are described in the documentation of that function.
     sigma : float
         Standard deviation for the Gaussian matrix.
     normalized : bool, optional
@@ -483,7 +483,7 @@ def inversion_linear(G,Us_formatted,lamb,Cm1,rs,sigma):
         Inverse covariance matrix; if array, use the array as the inverse covariance matrix.
         If string, determine the type of regularization: 'laplacian' or 'gaussian'.
     rs : ndarray
-        Mesh of sources. Refer to function create_source_mesh for further details on the dimensions.
+        Mesh of sources. Refer to function create_source_mesh from utils module for further details on the dimensions.
     sigma : float
         Standard deviation for Gaussian regularization.
 
@@ -707,7 +707,7 @@ def inversion_steepest(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constrai
         Inverse covariance matrix; if array, use the array as the inverse covariance matrix.
         If string, determine the type of regularization: 'laplacian' or 'gaussian' and uses it build it.
     rs : ndarray
-        Mesh of sources, refer to function create_source_mesh to know how it is built.
+        Mesh of sources, refer to function create_source_mesh from utils module to know how it is built.
     maxit : int
         Maximum number of iterations for optimization.
     source_number : int
@@ -775,7 +775,7 @@ def inversion_nlcg(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,c
         Inverse covariance matrix; if array, use the array as the inverse covariance matrix.
         If string, determine the type of regularization: 'laplacian' or 'gaussian' and uses it build it.
     rs : ndarray
-        Mesh of sources, refer to function create_source_mesh to know how it is built.
+        Mesh of sources, refer to function create_source_mesh from utils module to know how it is built.
     maxit : int
         Maximum number of iterations for optimization.
     source_number : int
@@ -849,7 +849,7 @@ def inversion_CG_scipy(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constrai
         Inverse covariance matrix; if array, use the array as the inverse covariance matrix.
         If string, determine the type of regularization: 'laplacian' or 'gaussian' and uses it build it.
     rs : ndarray
-        Mesh of sources, refer to function create_source_mesh to know how it is built.
+        Mesh of sources, refer to function create_source_mesh from utils module to know how it is built.
     maxit : int
         Maximum number of iterations for optimization.
     source_number : int
@@ -940,7 +940,7 @@ def inversion_lbfgs(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,
         Inverse covariance matrix; if array, use the array as the inverse covariance matrix.
         If string, determine the type of regularization: 'laplacian' or 'gaussian' and uses it build it.
     rs : ndarray
-        Mesh of sources, refer to function create_source_mesh to know how it is built.
+        Mesh of sources, refer to function create_source_mesh from utils module to know how it is built.
     maxit : int
         Maximum number of iterations for optimization.
     source_number : int
@@ -1032,7 +1032,7 @@ def inversion_lfbgs_scipy(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,const
         Inverse covariance matrix; if array, use the array as the inverse covariance matrix.
         If string, determine the type of regularization: 'laplacian' or 'gaussian' and uses it build it.
     rs : ndarray
-        Mesh of sources, refer to function create_source_mesh to know how it is built.
+        Mesh of sources, refer to function create_source_mesh from utils module to know how it is built.
     maxit : int
         Maximum number of iterations for optimization.
     source_number : int
@@ -1115,7 +1115,7 @@ def disp2load(E,v,rs,xs, ys, Us, mode=None, lamb=1, epsilon=1e-2, gamma_coeff=0.
     v : float
         Poisson's ratio.
     rs : ndarray
-        Mesh of sources created with the function create_source_mesh.
+        Mesh of sources created with the function create_source_mesh from utils module.
     xs, ys : ndarray
         x and y coordinates of the stations.
     Us : ndarray
