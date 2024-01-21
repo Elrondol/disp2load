@@ -527,7 +527,7 @@ def compute_cost(ps,Us_obs,G,lamb_cov_inv):
     float
         Cost value.
     """
-    return np.sum((Us_obs-np.matmul(G,ps))**2)
+    return np.sum((Us_obs-np.matmul(G,ps))**2) #computing dcal with matmul(G,ps) and computes the square of the norm 
 
 def compute_grad_misfit(ps,Us_obs,G,lamb_cov_inv):
     """
@@ -549,7 +549,7 @@ def compute_grad_misfit(ps,Us_obs,G,lamb_cov_inv):
     ndarray
         Gradient of the misfit.
     """
-    return np.matmul(G.T,(np.matmul(G,ps)-Us_obs)) + np.matmul(lamb_cov_inv,ps)
+    return np.matmul(G.T,(np.matmul(G,ps)-Us_obs)) + np.matmul(lamb_cov_inv,ps)#lamb_inv_coeff = lambda * Laplacian / Gaussian inverse in the doc; it's the inverse covariance matrix  
 #########################################################################
 
 
@@ -585,7 +585,7 @@ def linesearch(alpha,Us_obs,G,ps,delta_m,lamb_cov_inv,constraint_idx):
     it = 0
     if isinstance(constraint_idx,np.ndarray)==True:
         grad[constraint_idx] = 0 #if we provided bounds then we make sure the gradient is null for parameters with bounds, because lower bound = upper bound
-    while cond2==False and it<20:
+    while cond2==False and it<20: #tries for max 20 iterations, if 20 iterations were not sufficient a Armijo linesearch is performed after this linesearch
         it +=1
         if compute_cost(ps+alpha*delta_m,Us_obs,G,lamb_cov_inv) <= compute_cost(ps,Us_obs,G,lamb_cov_inv) + c1*alpha*np.dot(grad,delta_m):
             if np.dot(compute_grad_misfit(ps=ps+alpha*delta_m,Us_obs=Us_obs,G=G,lamb_cov_inv=lamb_cov_inv),delta_m) >= c2*np.dot(grad,delta_m):
@@ -630,7 +630,7 @@ def linesearch_armijo(alpha,Us_obs,G,ps,delta_m,lamb_cov_inv,constraint_idx):
     while cond==False:
         it +=1
         if compute_cost(ps+alpha*delta_m,Us_obs,G,lamb_cov_inv) <= compute_cost(ps,Us_obs,G,lamb_cov_inv) + c1*alpha*np.dot(grad,delta_m):
-                return alpha 
+                return alpha #Armijo condition met we return alpha
         else:
             alpha=alpha/2 #armijo = sufficient decrease not met, our alpha is too big
     return None #should not happend
@@ -751,9 +751,9 @@ def inversion_steepest(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constrai
         alpha_old = alpha #use the last alpha as the  first guess 
         alpha = linesearch(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv,constraint_idx=constraint_idx) #we added a condition to max 20 iterations to find alpha
         if alpha==None: #in case linesearch with wolfe conditions failed to find a good lambda, we try again with only the armijo condition 
-            alpha = linesearch_armijo(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv,constraint_idx=constraint_idx) #mettre juste condition d'armijo si le strong wolfe n'arrive pas à converger
+            alpha = linesearch_armijo(alpha=alpha_old,Us_obs=Us_formatted,G=G,ps=ps,delta_m=delta_m,lamb_cov_inv=lamb_cov_inv,constraint_idx=constraint_idx) #enforicing only armijo condition if the regular linesearch could not converge
         if alpha<1e-10:
-            alpha=1e-10
+            alpha=1e-10 #in case the step is too small we set it to 10^-10 to ensure that it doesn't take too many iterations
         ps += alpha*delta_m #x_{k+1}
         if np.dot(alpha*delta_m,alpha*delta_m) < epsilon: #checking for convergence
             conv = True
@@ -802,7 +802,7 @@ def inversion_nlcg(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,c
     ps = np.ones((source_number,))
     if isinstance(constraint,np.ndarray)==True:
         ps[constraint_idx] = constraint[constraint_idx] #adding the constraint 
-    if isinstance(Cm1, np.ndarray)==False: #on apeut déjà avoir créé au préalable la matrice de covariance 
+    if isinstance(Cm1, np.ndarray)==False: #using the covariance matrix if provided else computing it 
         if Cm1=='laplacian' or Cm1=='Laplacian':
             Cm1 =  build_laplacian(rs)
         elif Cm1=='Gaussian' or Cm1=='gaussian':
@@ -811,7 +811,7 @@ def inversion_nlcg(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,c
     rk = compute_grad_misfit(ps=ps,Us_obs=Us_formatted,G=G,lamb_cov_inv=lamb_cov_inv)
     pk = -rk #first direction is identical to steepest descent 
     if isinstance(constraint,np.ndarray)==True: # we set to 0 the derivative of parameters that need to be constrained because we use lower bound=  upper bound
-            pk[constraint_idx] = 0
+        pk[constraint_idx] = 0
     conv = False
     alpha = 1
     i = 0 #k in the algo
@@ -914,15 +914,15 @@ def lbfgs_direction(grad, s_hist, y_hist, rho_hist, m):
     """
     q = grad.copy()
     alpha = [0] * m #adapting the size of alpha to also work when k is smaller than m
-    for i in range(len(s_hist) - 1, -1, -1):
-        alpha[i] = rho_hist[i] * np.dot(s_hist[i], q)
-        q -= alpha[i] * y_hist[i]
-    gk = np.dot(s_hist[-1], y_hist[-1]) / np.dot(y_hist[-1], y_hist[-1]) #gamma k used to compute H0k so that when doing linesearch alpha = 1 is often accepted as explained in Nocedal
+    for i in range(len(s_hist) - 1, -1, -1): 
+        alpha[i] = rho_hist[i] * np.dot(s_hist[i], q) #same as the computation of alpha i in algo
+        q -= alpha[i] * y_hist[i] #same as computaiton of q in algo
+    gk = np.dot(s_hist[-1], y_hist[-1]) / np.dot(y_hist[-1], y_hist[-1]) #gamma k used to compute H0k so that when doing linesearch alpha = 1 is often accepted as explained in Nocedal & Wright
     r = gk * q #we chose H0 = gamma k*Identity  so r is just gk * q  
-    for i in range(len(s_hist)):
+    for i in range(len(s_hist)): #same as the second loop in the algo
         beta = rho_hist[i] * np.dot(y_hist[i], r)
         r += (alpha[i] - beta) * s_hist[i]
-    return r
+    return r #we end with r that is approx equal to to Hessian-1 grad (f) -> in L-BFGS algorithm H is the inverse Hessian approximation 
         
 def inversion_lbfgs(G,Us,lamb,Cm1,rs,maxit,source_number,data_number,constraint,constraint_idx,epsilon,sigma):
     """
@@ -1155,7 +1155,7 @@ def disp2load(E,v,rs,xs, ys, Us, mode=None, lamb=1, epsilon=1e-2, gamma_coeff=0.
     data_number = len(Us[:,0])*len(Us[0,:])
     source_number = len(rs[:,0,0,0])*len(rs[0,:,0,0])
     
-    Us_formatted = Us.reshape((data_number,1)) # trois premier les éléments de la première ligne, puis 3 suivant ce sont les 3 de la seconde ligne..
+    Us_formatted = Us.reshape((data_number,1)) # reshaping the (station_number,3) array to a vector of shape (data_number,1) 
     if isinstance(G, np.ndarray)==False: #checking if G already precomputed and uses it if so : time gain for L-curve...
         G = build_G(rs,xs,ys,l,m)
     
@@ -1167,7 +1167,6 @@ def disp2load(E,v,rs,xs, ys, Us, mode=None, lamb=1, epsilon=1e-2, gamma_coeff=0.
         
     t1 = time.time() # used to log the run
     ############################### INVERSION STARTING HERE ######################
-    
     if mode==None: #without regularization and linear inversion   
         ps = np.linalg.solve(G.T@G,G.T@Us_formatted) #Us_formatted is the data vector
     elif mode.lower()=='linear': #linear inversion using a chosen Covariance matrix for the regularisation
